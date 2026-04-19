@@ -325,3 +325,60 @@ function navItemStyle(active: boolean): React.CSSProperties {
     fontWeight: active ? 800 : 700,
   }
             }
+import { useEffect, useState } from "react"
+import { translations, type Lang, getDirection } from "@/lib/i18n"
+
+export default function ExamplePage() {
+  const [lang, setLang] = useState<Lang>("ar")
+
+  useEffect(() => {
+    const saved = (localStorage.getItem("app_lang") as Lang) || "ar"
+    setLang(saved)
+    document.documentElement.lang = saved
+    document.documentElement.dir = getDirection(saved)
+  }, [])
+
+  const t = translations[lang]
+
+  return (
+    <main>
+      <h1>{t.appName}</h1>
+      <p>{t.homeSubtitle}</p>
+      <button>{t.connectPi}</button>
+    </main>
+  )
+}
+import { useEffect, useState } from "react"
+import { type Lang } from "@/lib/i18n"
+
+export default function LanguageSwitcher() {
+  const [lang, setLang] = useState<Lang>("ar")
+
+  useEffect(() => {
+    const saved = (localStorage.getItem("app_lang") as Lang) || "ar"
+    setLang(saved)
+  }, [])
+
+  const changeLanguage = (nextLang: Lang) => {
+    localStorage.setItem("app_lang", nextLang)
+    window.location.reload()
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 8 }}>
+      <button
+        onClick={() => changeLanguage("ar")}
+        disabled={lang === "ar"}
+      >
+        العربية
+      </button>
+
+      <button
+        onClick={() => changeLanguage("en")}
+        disabled={lang === "en"}
+      >
+        English
+      </button>
+    </div>
+  )
+}
