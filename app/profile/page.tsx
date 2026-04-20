@@ -437,3 +437,8 @@ function navItemStyle(active: boolean): CSSProperties {
     fontWeight: active ? 800 : 700,
   }
 }
+
+<Link href="/admin/visits" style={linkCardStyle}>
+  لوحة الزوار
+</Link>
+} 
