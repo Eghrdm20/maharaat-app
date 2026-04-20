@@ -1,22 +1,485 @@
+/* ===================================
+   🎨 منصة المهارات - نظام التصميم المحسن
+   Maharaat Platform - Enhanced Design System
+   =================================== */
+
+/* ====== 1. إعادة تعيين الأساسيات (Reset & Base) ====== */
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html,
 body {
   padding: 0;
   margin: 0;
-  background: #f8fafc;
-  color: #0f172a;
-  font-family: Arial, sans-serif;
+  
+  /* ✨ ألوان الوضع الفاتح (Light Mode) */
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  
+  /* ✨ خط عربي احترافي */
+  font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  
+  /* ✨ تحسينات القراءة */
+  line-height: 1.7;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+  /* ✨ انتقال سلس عند تبديل الوضع الداكن */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* ====== 2. نظام الألوان المتقدم (Color System) ====== */
+:root {
+  /* 🎨 التدرجات اللونية الرئيسية (Gradients) */
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  --warning-gradient: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%);
+  --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  
+  /* 🌈 ألوان أساسية صلبة */
+  --primary-color: #667eea;
+  --secondary-color: #764ba2;
+  --accent-pink: #f5576c;
+  --accent-green: #38ef7d;
+  --accent-orange: #f2994a;
+  --accent-blue: #4facfe;
+  
+  /* 🎭 ألوان الخلفيات (Backgrounds) */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  
+  /* 📝 ألوان النصوص (Text Colors) */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+  
+  /* 🔲 ألوان الحدود (Borders) */
+  --border-color: #e2e8f0;
+  --border-light: #f1f5f9;
+  --border-focus: #667eea;
+  
+  /* 💫 الظلال (Shadows) - متدرجة الشدة */
+  --shadow-xs: 0 2px 4px rgba(102, 126, 234, 0.04);
+  --shadow-sm: 0 2px 8px rgba(102, 126, 234, 0.08);
+  --shadow-md: 0 8px 24px rgba(102, 126, 234, 0.12);
+  --shadow-lg: 0 16px 48px rgba(102, 126, 234, 0.16);
+  --shadow-xl: 0 24px 64px rgba(102, 126, 234, 0.20);
+  --shadow-hover: 0 20px 60px rgba(102, 126, 234, 0.24);
+  
+  /* ⭕ زوايا مدورة (Border Radius) */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-full: 9999px;
+  
+  /* ⏱️ سرعات الانتقال (Transitions) */
+  --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* 📏 المسافات (Spacing Scale) */
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.5rem;    /* 8px */
+  --space-md: 1rem;      /* 16px */
+  --space-lg: 1.5rem;    /* 24px */
+  --space-xl: 2rem;      /* 32px */
+  --space-2xl: 3rem;     /* 48px */
+  --space-3xl: 4rem;     /* 64px */
+}
+
+/* ====== 3. 🌙 الوضع الداكن (Dark Mode) ====== */
+[data-theme="dark"] {
+  /* 🌑 خلفيات داكنة */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #1e293b;
+  --bg-hover: #334155;
+  
+  /* 📝 نصوص فاتحة */
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  
+  /* 🔲 حدود داكنة */
+  --border-color: #334155;
+  --border-light: #1e293b;
+  
+  /* 💫 ظلامية أكبر */
+  --shadow-xs: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.6);
+  --shadow-hover: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+/* ====== 4. الروابط والتفاعلات (Links & Interactions) ====== */
 a {
   color: inherit;
+  text-decoration: none;
+  transition: var(--transition-fast);
 }
 
+a:hover {
+  color: var(--primary-color);
+}
+
+/* ====== 5. العناصر التفاعلية (Form Elements) ====== */
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+  transition: var(--transition-normal);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* ====== 6. الصور (Images) ====== */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ====== 7. القوائم (Lists) ====== */
+ul,
+ol {
+  list-style: none;
+}
+
+/* ====== 8. التحديد (Selection) ====== */
+::selection {
+  background: rgba(102, 126, 234, 0.3);
+  color: var(--text-primary);
+}
+
+::-moz-selection {
+  background: rgba(102, 126, 234, 0.3);
+  color: var(--text-primary);
+}
+
+/* ====== 9. شريط التمرير المخصص (Custom Scrollbar) ====== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-gradient);
+  border-radius: var(--radius-full);
+  transition: var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-color);
+}
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) var(--bg-primary);
+}
+
+/* ====== 10. 🔄 الرسوم المتحركة (Animations) ====== */
+
+/* 🎯 Fade In Up - ظهور من الأسفل */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 🎯 Fade In Down - ظهور من الأعلى */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 🎯 Slide Down - انزلاق للأسفل */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 💫 Pulse - نبض */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* 🔄 Rotate - دوران */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 🎈 Bounce - قفز */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* 🌊 Float - طفو */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(5px) rotate(-1deg);
+  }
+}
+
+/* ✨ Shimmer - لمعان */
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* ====== 11. الأنماط المساعدة (Utility Classes) ====== */
+
+/* 🎨 خلفيات متدرجة */
+.bg-gradient-primary {
+  background: var(--primary-gradient);
+}
+
+.bg-gradient-secondary {
+  background: var(--secondary-gradient);
+}
+
+.bg-gradient-success {
+  background: var(--success-gradient);
+}
+
+/* 👁️ تأثير الزجاج (Glassmorphism) */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .glass {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 🎭 تأثير الظل عند التمرير */
+.hover-lift {
+  transition: var(--transition-normal);
+}
+
+.hover-lift:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* 📱 إخفاء/إظهار حسب الجهاز */
+.hide-mobile {
+  display: block;
+}
+
+.show-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+  
+  .show-mobile {
+    display: block !important;
+  }
+}
+
+/* ====== 12. تحسينات إمكانية الوصول (Accessibility) ====== */
+
+/* 🎯 تركيز لوحة المفاتيح */
+:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* 📖 تخطي للمحتوى الرئيسي (Screen Readers) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ====== 13. تحسينات الطباعة (Print Styles) ====== */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  a {
+    text-decoration: underline;
+  }
+}
+
+/* ====== 14. 🎨 أنماط خاصة بالتطبيق ====== */
+
+/* بطاقة رئيسية */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-normal);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* زر رئيسي */
+.btn-primary {
+  background: var(--primary-gradient);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-normal);
+}
+
+.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active {
+  transform: translateY(-1px);
+}
+
+/* نص متدرج */
+.text-gradient {
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* أيقونة دائرية */
+.icon-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ====== 15. 📱 استعلامات الوسائط (Media Queries) ====== */
+
+/* 📱 جوال صغير */
+@media (max-width: 480px) {
+  :root {
+    --space-lg: 1rem;
+    --space-xl: 1.5rem;
+    --space-2xl: 2rem;
+  }
+  
+  body {
+    font-size: 14px;
+  }
+}
+
+/* 📱 تابلت */
+@media (max-width: 768px) and (min-width: 481px) {
+  body {
+    font-size: 15px;
+  }
+}
+
+/* 🖥️ ديسكتوب كبير */
+@media (min-width: 1280px) {
+  body {
+    font-size: 17px;
+  }
 }
