@@ -43,14 +43,19 @@ export default function HomePage() {
       try {
         setLoading(true);
         setError("");
+
         const supabase = createSupabaseClient();
+
         const { data, error } = await supabase
           .from("courses")
           .select("*")
           .eq("is_deleted", false)
           .order("id", { ascending: false });
 
-        if (error) throw new Error(error.message);
+        if (error) {
+          throw new Error(error.message);
+        }
+
         const nextCourses = (data || []) as Course[];
         setCourses(nextCourses);
         setFilteredCourses(nextCourses);
@@ -61,6 +66,7 @@ export default function HomePage() {
         setLoading(false);
       }
     };
+
     loadCourses();
   }, []);
 
@@ -73,20 +79,25 @@ export default function HomePage() {
 
   useEffect(() => {
     const q = search.trim().toLowerCase();
+
     if (!q) {
       setFilteredCourses(courses);
       return;
     }
+
     setFilteredCourses(
-      courses.filter((course) =>
-        course.title?.toLowerCase().includes(q) ||
-        course.description?.toLowerCase().includes(q) ||
-        course.instructor_name?.toLowerCase().includes(q)
-      )
+      courses.filter((course) => {
+        return (
+          course.title?.toLowerCase().includes(q) ||
+          course.description?.toLowerCase().includes(q) ||
+          course.instructor_name?.toLowerCase().includes(q)
+        );
+      })
     );
   }, [search, courses]);
 
-  // ====== Styles ======
+  // ====== 🎨 STYLES ======
+  
   const mainStyle: CSSProperties = {
     minHeight: "100vh",
     paddingBottom: 100,
@@ -96,11 +107,17 @@ export default function HomePage() {
   };
 
   const containerStyle: CSSProperties = {
-    maxWidth: 600,
+    maxWidth: 650,
     margin: "0 auto",
     padding: "24px 20px",
     position: "relative",
     zIndex: 1,
+  };
+
+  const headerStyle: CSSProperties = {
+    textAlign: lang === "ar" ? "center" : "center",
+    marginBottom: 28,
+    animation: "fadeInDown 0.8s ease-out",
   };
 
   const titleStyle: CSSProperties = {
@@ -128,6 +145,7 @@ export default function HomePage() {
     padding: "20px",
     marginBottom: 24,
     boxShadow: "var(--shadow-lg)",
+    animation: "fadeInUp 0.8s ease-out 0.1s backwards",
   };
 
   const searchInputStyle: CSSProperties = {
@@ -139,8 +157,17 @@ export default function HomePage() {
     outline: "none",
     background: "var(--bg-primary)",
     color: "var(--text-primary)",
-    transition: "all 0.3s ease",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     boxShadow: "var(--shadow-xs)",
+    fontWeight: 500,
+  };
+
+  const sectionHeaderStyle: CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 18,
+    animation: "fadeInUp 0.8s ease-out 0.2s backwards",
   };
 
   const sectionTitleStyle: CSSProperties = {
@@ -159,7 +186,7 @@ export default function HomePage() {
     borderRadius: "24px",
     overflow: "hidden",
     boxShadow: "var(--shadow-md)",
-    transition: "all 0.4s ease",
+    transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
     textDecoration: "none",
     color: "var(--text-primary)",
     display: "block",
@@ -192,8 +219,10 @@ export default function HomePage() {
     borderRadius: "999px",
     padding: "8px 16px",
     fontWeight: 700,
+    whiteSpace: "nowrap",
     fontSize: 13,
     boxShadow: "0 4px 12px rgba(242, 153, 74, 0.35)",
+    letterSpacing: "0.5px",
   };
 
   const activeBadgeStyle: CSSProperties = {
@@ -202,6 +231,7 @@ export default function HomePage() {
     borderRadius: "999px",
     padding: "8px 16px",
     fontWeight: 700,
+    whiteSpace: "nowrap",
     fontSize: 13,
     boxShadow: "0 4px 12px rgba(56, 239, 125, 0.35)",
   };
@@ -279,9 +309,10 @@ export default function HomePage() {
     fontWeight: 700,
     fontSize: 14,
     boxShadow: "0 8px 24px rgba(102, 126, 234, 0.35)",
-    transition: "all 0.3s ease",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     cursor: "pointer",
     border: "none",
+    letterSpacing: "0.5px",
   };
 
   const infoBoxStyle: CSSProperties = {
@@ -293,6 +324,7 @@ export default function HomePage() {
     textAlign: "center",
     boxShadow: "var(--shadow-sm)",
     fontSize: 15,
+    fontWeight: 500,
   };
 
   const errorBoxStyle: CSSProperties = {
@@ -313,21 +345,23 @@ export default function HomePage() {
     border: "2px solid rgba(102, 126, 234, 0.15)",
   };
 
+  // ====== NAVIGATION STYLES ======
+  
   const navStyle: CSSProperties = {
     position: "fixed",
     bottom: 0,
     left: "50%",
     transform: "translateX(-50%)",
     width: "100%",
-    maxWidth: 600,
+    maxWidth: 650,
     background: "rgba(255, 255, 255, 0.95)",
     backdropFilter: "blur(20px)",
     WebkitBackdropFilter: "blur(20px)",
     borderTop: "1px solid var(--border-color)",
-    padding: "12px 16px",
+    padding: "10px 12px",
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 10,
+    gridTemplateColumns: "repeat(4, 1fr)", // ← 4 أزرار!
+    gap: 6,
     boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.1)",
     zIndex: 100,
   };
@@ -345,7 +379,9 @@ export default function HomePage() {
     padding: "8px 14px",
     borderRadius: "10px",
     border: "none",
-    background: active ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" : "transparent",
+    background: active 
+      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
+      : "transparent",
     color: active ? "white" : "var(--text-secondary)",
     fontWeight: active ? 700 : 600,
     fontSize: 13,
@@ -357,15 +393,23 @@ export default function HomePage() {
   const navItemStyle = (active: boolean): CSSProperties => ({
     textDecoration: "none",
     textAlign: "center",
-    background: active ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" : "transparent",
+    background: active 
+      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
+      : "transparent",
     color: active ? "white" : "var(--text-secondary)",
-    padding: "14px 10px",
-    borderRadius: "18px",
-    fontSize: 13,
+    padding: "10px 6px",
+    borderRadius: "16px",
+    fontSize: 11,
     fontWeight: active ? 800 : 600,
-    transition: "all 0.3s ease",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     boxShadow: active ? "0 8px 24px rgba(102, 126, 234, 0.35)" : "none",
     transform: active ? "translateY(-2px)" : "translateY(0)",
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
   });
 
   // ====== RENDER ======
@@ -377,6 +421,7 @@ export default function HomePage() {
         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
         opacity: 0.04, borderRadius: "50%", pointerEvents: "none", zIndex: 0,
       }} />
+      
       <div style={{
         position: "fixed", bottom: 100, right: -100, width: 300, height: 300,
         background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
@@ -385,14 +430,18 @@ export default function HomePage() {
 
       <div style={containerStyle}>
         {/* Header */}
-        <header style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <header style={headerStyle}>
+          {/* Language Toggle */}
+          <div style={{ 
+            display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 
+          }}>
             <div />
             <div style={languageToggleStyle}>
               <button onClick={() => changeLanguage("ar")} style={langButtonStyle(lang === "ar")} type="button">عربي</button>
               <button onClick={() => changeLanguage("en")} style={langButtonStyle(lang === "en")} type="button">EN</button>
             </div>
           </div>
+
           <h1 style={titleStyle}>{t.homeTitle}</h1>
           <p style={subtitleStyle}>{t.homeSubtitle}</p>
         </header>
@@ -411,10 +460,12 @@ export default function HomePage() {
 
         {/* Courses */}
         <section>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <div style={sectionHeaderStyle}>
             <h2 style={sectionTitleStyle}>
               <span>📚</span> {t.courses}
-              <span style={{ background: "var(--bg-hover)", padding: "4px 12px", borderRadius: "999px", fontSize: 14, fontWeight: 700, color: "var(--text-muted)" }}>
+              <span style={{
+                background: "var(--bg-hover)", padding: "4px 12px", borderRadius: "999px", fontSize: 14, fontWeight: 700, color: "var(--text-muted)",
+              }}>
                 {filteredCourses.length}
               </span>
             </h2>
@@ -441,29 +492,64 @@ export default function HomePage() {
                 <Link key={course.id} href={`/courses/${course.id}`} style={cardStyle}>
                   <div style={cardImageWrapperStyle}>
                     {course.image_url ? (
-                      <img src={course.image_url} alt={course.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={course.image_url} alt={course.title} style={{
+                        width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s ease",
+                      }} />
                     ) : (
-                      <div style={{ fontSize: 64, background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>📘</div>
+                      <div style={{ 
+                        fontSize: 64, 
+                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+                      }}>📘</div>
                     )}
+                    
                     <div style={{ position: "absolute", top: 14, right: 14 }}>
-                      {course.is_new ? <span style={newBadgeStyle}>✨ {t.new}</span> : <span style={activeBadgeStyle}>✅ متاح</span>}
+                      {course.is_new ? (
+                        <span style={newBadgeStyle}>✨ {t.new}</span>
+                      ) : (
+                        <span style={activeBadgeStyle}>✅ متاح</span>
+                      )}
                     </div>
                   </div>
 
                   <div style={cardContentStyle}>
                     <h3 style={cardTitleStyle}>{course.title}</h3>
-                    <div style={instructorStyle}><span>👨‍🏫</span> {t.instructorBy} <strong>{course.instructor_name}</strong></div>
-                    <p style={descriptionStyle}>{course.description || t.noDescription}</p>
+
+                    <div style={instructorStyle}>
+                      <span>👨‍🏫</span> {t.instructorBy} <strong>{course.instructor_name}</strong>
+                    </div>
+
+                    <p style={descriptionStyle}>
+                      {course.description || t.noDescription}
+                    </p>
 
                     <div style={statsGridStyle}>
-                      <div style={statItemStyle}><span style={statValueStyle}>⭐ {course.rating ?? 0}</span>{t.rating}</div>
-                      <div style={statItemStyle}><span style={statValueStyle}>👥 {course.students_count ?? 0}</span>{t.students}</div>
-                      <div style={statItemStyle}><span style={statValueStyle}>⏱️ {course.duration || "-"}</span>{t.duration}</div>
+                      <div style={statItemStyle}>
+                        <span style={statValueStyle}>⭐ {course.rating ?? 0}</span>
+                        {t.rating}
+                      </div>
+                      <div style={statItemStyle}>
+                        <span style={statValueStyle}>👥 {course.students_count ?? 0}</span>
+                        {t.students}
+                      </div>
+                      <div style={statItemStyle}>
+                        <span style={statValueStyle}>⏱️ {course.duration || "-"}</span>
+                        {t.duration}
+                      </div>
                     </div>
 
                     <div style={cardFooterStyle}>
-                      <div style={priceStyle}>{course.is_free ? <span>{t.free} 💚</span> : <span>{course.price} {course.currency || "π"}</span>}</div>
-                      <button style={startButtonStyle}>{t.startNow} →</button>
+                      <div style={priceStyle}>
+                        {course.is_free ? <span>{t.free} 💚</span> : <span>{course.price} {course.currency || "π"}</span>}
+                      </div>
+
+                      <button
+                        style={startButtonStyle}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.05)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(102, 126, 234, 0.5)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(102, 126, 234, 0.35)"; }}
+                      >
+                        {t.startNow} →
+                      </button>
                     </div>
                   </div>
                 </Link>
@@ -473,21 +559,45 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* Navigation */}
+      {/* 🧭 Bottom Navigation - 4 Tabs! */}
       <nav style={navStyle}>
+        {/* Tab 1: Profile */}
         <Link href="/profile" style={navItemStyle(false)}>
-          <div style={{ fontSize: 20, marginBottom: 4 }}>👤</div>
-          {t.profile}
+          <div style={{ fontSize: 18, marginBottom: 3 }}>👤</div>
+          <span>{t.profile}</span>
         </Link>
+
+        {/* Tab 2: Create Course */}
         <Link href="/create-course" style={navItemStyle(false)}>
-          <div style={{ fontSize: 20, marginBottom: 4 }}>➕</div>
-          {t.createCourse}
+          <div style={{ fontSize: 18, marginBottom: 3 }}>➕</div>
+          <span>{t.createCourse}</span>
         </Link>
+
+        {/* Tab 3: News (NEW!) */}
+        <Link href="/news" style={navItemStyle(false)}>
+          <div style={{ fontSize: 18, marginBottom: 3 }}>📰</div>
+          <span>أخبار</span>
+        </Link>
+
+        {/* Tab 4: Home (Active) */}
         <Link href="/" style={navItemStyle(true)}>
-          <div style={{ fontSize: 20, marginBottom: 4 }}>🏠</div>
-          {t.home}
+          <div style={{ fontSize: 18, marginBottom: 3 }}>🏠</div>
+          <span>{t.home}</span>
         </Link>
       </nav>
+
+      {/* Animations */}
+      <style jsx global>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInDown {
+          from { opacity: 0; transform: translateY(-30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </main>
   );
 }
