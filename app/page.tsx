@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabase/client";
+import { translations, type Lang, getDirection } from "@/lib/i18n";
 
 type Course = {
   id: number;
@@ -27,8 +28,20 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  // ✅ إضافة دعم اللغة
+  const [lang, setLang] = useState<Lang>("ar");
+  
+  const t = translations[lang]; // ✅ كائن الترجمة
+  const dir = getDirection(lang); // ✅ اتجاه النص
 
   useEffect(() => {
+    // ✅ تحميل اللغة المحفوظة
+    const savedLang = (window.localStorage.getItem("app_lang") as Lang) || "ar";
+    setLang(savedLang);
+    document.documentElement.lang = savedLang;
+    document.documentElement.dir = getDirection(savedLang);
+
     const loadCourses = async () => {
       try {
         setLoading(true);
@@ -51,7 +64,7 @@ export default function HomePage() {
         setFilteredCourses(nextCourses);
       } catch (err: any) {
         console.error(err);
-        setError(err?.message || "تعذر تحميل الدورات");
+        setError(err?.message || t.errorLoading || "تعذر تحميل الدورات");
       } finally {
         setLoading(false);
       }
@@ -59,6 +72,14 @@ export default function HomePage() {
 
     loadCourses();
   }, []);
+
+  // ✅ دالة تبديل اللغة
+  const changeLanguage = (newLang: Lang) => {
+    setLang(newLang);
+    window.localStorage.setItem("app_lang", newLang);
+    document.documentElement.lang = newLang;
+    document.documentElement.dir = getDirection(newLang);
+  };
 
   useEffect(() => {
     const q = search.trim().toLowerCase();
@@ -79,7 +100,7 @@ export default function HomePage() {
     );
   }, [search, courses]);
 
-  // ====== 🎨 أنماط التصميم المحسنة ======
+  // ====== 🎨 الأنماط (نفسها كما هي - لم أغيرها) ======
 
   const mainStyle: CSSProperties = {
     minHeight: "100vh",
@@ -98,7 +119,7 @@ export default function HomePage() {
   };
 
   const headerStyle: CSSProperties = {
-    textAlign: "center",
+    textAlign: lang === "ar" ? "center" : "center",
     marginBottom: 28,
     animation: "fadeInDown 0.8s ease-out",
   };
@@ -163,7 +184,6 @@ export default function HomePage() {
     gap: 10,
   };
 
-  // 🎴 نمط بطاقة الدورة المحسّن
   const cardStyle: CSSProperties = {
     background: "var(--bg-card)",
     border: "1px solid var(--border-color)",
@@ -369,8 +389,33 @@ export default function HomePage() {
     };
   }
 
+  // ✅ زر تبديل اللغة
+  const languageToggleStyle: CSSProperties = {
+    display: "inline-flex",
+    gap: 8,
+    background: "var(--bg-hover)",
+    padding: "6px",
+    borderRadius: "14px",
+    border: "1px solid var(--border-color)",
+  };
+
+  const languageButtonStyle = (active: boolean): CSSProperties => ({
+    padding: "8px 14px",
+    borderRadius: "10px",
+    border: "none",
+    background: active 
+      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
+      : "transparent",
+    color: active ? "white" : "var(--text-secondary)",
+    fontWeight: active ? 700 : 600,
+    fontSize: 13,
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    boxShadow: active ? "0 4px 12px rgba(102, 126, 234, 0.25)" : "none",
+  });
+
   return (
-    <main style={mainStyle}>
+    <main style={{ ...mainStyle, direction: dir }}>
       {/* ✨ خلفيات زخرفية */}
       <div style={{
         position: "fixed",
@@ -401,12 +446,38 @@ export default function HomePage() {
       <div style={containerStyle}>
         {/* 🎯 الرأس */}
         <header style={headerStyle}>
+          {/* ✅ زر تبديل اللغة */}
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "space-between", 
+            alignItems: "center",
+            marginBottom: 16,
+          }}>
+            <div />
+            <div style={languageToggleStyle}>
+              <button
+                onClick={() => changeLanguage("ar")}
+                style={languageButtonStyle(lang === "ar")}
+                type="button"
+              >
+                عربي
+              </button>
+              <button
+                onClick={() => changeLanguage("en")}
+                style={languageButtonStyle(lang === "en")}
+                type="button"
+              >
+                EN
+              </button>
+            </div>
+          </div>
+
           <h1 style={titleStyle}>
             <span style={{ marginRight: 8 }}>🎓</span>
-            دورات تدريبية
+            {t.homeTitle || "دورات تدريبية"}
           </h1>
           <p style={subtitleStyle}>
-            استكشف الدورات المنشورة في المنصة وابدأ رحلة التعلم
+            {t.homeSubtitle || "استكشف الدورات المنشورة في المنصة"}
           </p>
         </header>
 
@@ -415,7 +486,7 @@ export default function HomePage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="🔍 ابحث عن الدورات..."
+            placeholder={`🔍 ${t.searchPlaceholder || "ابحث عن الدورات..."}`}
             style={searchInputStyle}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "#667eea";
@@ -433,7 +504,7 @@ export default function HomePage() {
           <div style={sectionHeaderStyle}>
             <h2 style={sectionTitleStyle}>
               <span>📚</span>
-              الدورات
+              {t.coursesTitle || "الدورات"}
               <span style={{
                 background: "var(--bg-hover)",
                 padding: "4px 12px",
@@ -450,7 +521,7 @@ export default function HomePage() {
           {loading ? (
             <div style={loadingBoxStyle}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>⏳</div>
-              جاري تحميل الدورات...
+              {t.loadingCourses || "جاري تحميل الدورات..."}
             </div>
           ) : error ? (
             <div style={errorBoxStyle}>
@@ -460,7 +531,7 @@ export default function HomePage() {
           ) : filteredCourses.length === 0 ? (
             <div style={infoBoxStyle}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-              لا توجد دورات مطابقة لبحثك
+              {t.noCoursesFound || "لا توجد دورات مطابقة"}
             </div>
           ) : (
             <div style={{ display: "grid", gap: 20 }}>
@@ -513,9 +584,9 @@ export default function HomePage() {
                       right: 14,
                     }}>
                       {course.is_new ? (
-                        <span style={newBadgeStyle}>✨ جديد</span>
+                        <span style={newBadgeStyle}>✨ {t.newBadge || "جديد"}</span>
                       ) : (
-                        <span style={activeBadgeStyle}>✅ متاح</span>
+                        <span style={activeBadgeStyle}>✅ {t.availableBadge || "متاح"}</span>
                       )}
                     </div>
                   </div>
@@ -536,27 +607,27 @@ export default function HomePage() {
                     {/* المدرب */}
                     <div style={instructorStyle}>
                       <span>👨‍🏫</span>
-                      بواسطة <strong>{course.instructor_name}</strong>
+                      {t.byInstructor || "بواسطة"} <strong>{course.instructor_name}</strong>
                     </div>
 
                     {/* الوصف */}
                     <p style={descriptionStyle}>
-                      {course.description || "لا يوجد وصف متاح لهذه الدورة"}
+                      {course.description || t.noDescription || "لا يوجد وصف"}
                     </p>
 
                     {/* الإحصائيات */}
                     <div style={statsGridStyle}>
                       <div style={statItemStyle}>
                         <span style={statValueStyle}>⭐ {course.rating ?? 0}</span>
-                        التقييم
+                        {t.ratingLabel || "التقييم"}
                       </div>
                       <div style={statItemStyle}>
                         <span style={statValueStyle}>👥 {course.students_count ?? 0}</span>
-                        الطلاب
+                        {t.studentsLabel || "الطلاب"}
                       </div>
                       <div style={statItemStyle}>
                         <span style={statValueStyle}>⏱️ {course.duration || "-"}</span>
-                        المدة
+                        {t.durationLabel || "المدة"}
                       </div>
                     </div>
 
@@ -564,7 +635,7 @@ export default function HomePage() {
                     <div style={cardFooterStyle}>
                       <div style={priceStyle}>
                         {course.is_free ? (
-                          <span>مجاني 💚</span>
+                          <span>{t.freeLabel || "مجاني"} 💚</span>
                         ) : (
                           <span>{course.price} {course.currency || "π"}</span>
                         )}
@@ -581,7 +652,7 @@ export default function HomePage() {
                           e.currentTarget.style.boxShadow = "0 8px 24px rgba(102, 126, 234, 0.35)";
                         }}
                       >
-                        ابدأ الآن →
+                        {t.startNowBtn || "ابدأ الآن"} →
                       </button>
                     </div>
                   </div>
@@ -609,7 +680,7 @@ export default function HomePage() {
           }}
         >
           <div style={{ fontSize: 20, marginBottom: 4 }}>👤</div>
-          الملف الشخصي
+          {t.navProfile || "الملف الشخصي"}
         </Link>
 
         <Link 
@@ -627,16 +698,16 @@ export default function HomePage() {
           }}
         >
           <div style={{ fontSize: 20, marginBottom: 4 }}>➕</div>
-          أنشئ دورة
+          {t.navCreateCourse || "أنشئ دورة"}
         </Link>
 
         <Link href="/" style={navItemStyle(true)}>
           <div style={{ fontSize: 20, marginBottom: 4 }}>🏠</div>
-          الرئيسية
+          {t.navHome || "الرئيسية"}
         </Link>
       </nav>
 
-      {/* 🎨 أنماط Animations */}
+      {/* 🎨 Animations */}
       <style jsx global>{`
         @keyframes fadeInUp {
           from {
