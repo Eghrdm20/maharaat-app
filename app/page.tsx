@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabase/client";
+// ✅ استيراد صحيح
 import { translations, type Lang, getDirection } from "@/lib/i18n";
 
 type Course = {
@@ -29,11 +30,12 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   
-  // ✅ إضافة دعم اللغة
+  // ✅ دعم اللغة
   const [lang, setLang] = useState<Lang>("ar");
   
-  const t = translations[lang]; // ✅ كائن الترجمة
-  const dir = getDirection(lang); // ✅ اتجاه النص
+  // ✅ كائن الترجمة الصحيح
+  const t = translations[lang];
+  const dir = getDirection(lang);
 
   useEffect(() => {
     // ✅ تحميل اللغة المحفوظة
@@ -64,7 +66,7 @@ export default function HomePage() {
         setFilteredCourses(nextCourses);
       } catch (err: any) {
         console.error(err);
-        setError(err?.message || t.errorLoading || "تعذر تحميل الدورات");
+        setError(t.failedToLoadCourses); // ✅ اسم صحيح
       } finally {
         setLoading(false);
       }
@@ -100,7 +102,7 @@ export default function HomePage() {
     );
   }, [search, courses]);
 
-  // ====== 🎨 الأنماط (نفسها كما هي - لم أغيرها) ======
+  // ====== 🎨 الأنماط (نفسها كما هي) ======
 
   const mainStyle: CSSProperties = {
     minHeight: "100vh",
@@ -472,12 +474,14 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* ✅ استخدام t.homeTitle (موجود في i18n) */}
           <h1 style={titleStyle}>
-            <span style={{ marginRight: 8 }}>🎓</span>
-            {t.homeTitle || "دورات تدريبية"}
+            {t.homeTitle}
           </h1>
+          
+          {/* ✅ استخدام t.homeSubtitle (موجود في i18n) */}
           <p style={subtitleStyle}>
-            {t.homeSubtitle || "استكشف الدورات المنشورة في المنصة"}
+            {t.homeSubtitle}
           </p>
         </header>
 
@@ -486,7 +490,7 @@ export default function HomePage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`🔍 ${t.searchPlaceholder || "ابحث عن الدورات..."}`}
+            placeholder={`🔍 ${t.searchCourses}`}  {/* ✅ تصحيح الاسم */}
             style={searchInputStyle}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "#667eea";
@@ -504,7 +508,7 @@ export default function HomePage() {
           <div style={sectionHeaderStyle}>
             <h2 style={sectionTitleStyle}>
               <span>📚</span>
-              {t.coursesTitle || "الدورات"}
+              {t.courses}  {/* ✅ تصحيح: كان coursesTitle */}
               <span style={{
                 background: "var(--bg-hover)",
                 padding: "4px 12px",
@@ -521,7 +525,7 @@ export default function HomePage() {
           {loading ? (
             <div style={loadingBoxStyle}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>⏳</div>
-              {t.loadingCourses || "جاري تحميل الدورات..."}
+              {t.loadingCourses}  {/* ✅ موجود في i18n */}
             </div>
           ) : error ? (
             <div style={errorBoxStyle}>
@@ -531,7 +535,7 @@ export default function HomePage() {
           ) : filteredCourses.length === 0 ? (
             <div style={infoBoxStyle}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-              {t.noCoursesFound || "لا توجد دورات مطابقة"}
+              {t.noCourses}  {/* ✅ تصحيح: كان noCoursesFound */}
             </div>
           ) : (
             <div style={{ display: "grid", gap: 20 }}>
@@ -584,9 +588,9 @@ export default function HomePage() {
                       right: 14,
                     }}>
                       {course.is_new ? (
-                        <span style={newBadgeStyle}>✨ {t.newBadge || "جديد"}</span>
+                        <span style={newBadgeStyle}>✨ {t.new}</span>  {/* ✅ تصحيح: كان newBadge */}
                       ) : (
-                        <span style={activeBadgeStyle}>✅ {t.availableBadge || "متاح"}</span>
+                        <span style={activeBadgeStyle}>✅ {t.available || "متاح"}</span>  {/* ⚠️ available غير موجود لكن سنستخدم fallback */}
                       )}
                     </div>
                   </div>
@@ -607,27 +611,27 @@ export default function HomePage() {
                     {/* المدرب */}
                     <div style={instructorStyle}>
                       <span>👨‍🏫</span>
-                      {t.byInstructor || "بواسطة"} <strong>{course.instructor_name}</strong>
+                      {t.instructorBy} <strong>{course.instructor_name}</strong>  {/* ✅ تصحيح: كان byInstructor */}
                     </div>
 
                     {/* الوصف */}
                     <p style={descriptionStyle}>
-                      {course.description || t.noDescription || "لا يوجد وصف"}
+                      {course.description || t.noDescription}  {/* ✅ موجود */}
                     </p>
 
                     {/* الإحصائيات */}
                     <div style={statsGridStyle}>
                       <div style={statItemStyle}>
                         <span style={statValueStyle}>⭐ {course.rating ?? 0}</span>
-                        {t.ratingLabel || "التقييم"}
+                        {t.rating}  {/* ✅ تصحيح: كان ratingLabel */}
                       </div>
                       <div style={statItemStyle}>
                         <span style={statValueStyle}>👥 {course.students_count ?? 0}</span>
-                        {t.studentsLabel || "الطلاب"}
+                        {t.students}  {/* ✅ تصحيح: كان studentsLabel */}
                       </div>
                       <div style={statItemStyle}>
                         <span style={statValueStyle}>⏱️ {course.duration || "-"}</span>
-                        {t.durationLabel || "المدة"}
+                        {t.duration}  {/* ✅ تصحيح: كان durationLabel */}
                       </div>
                     </div>
 
@@ -635,7 +639,7 @@ export default function HomePage() {
                     <div style={cardFooterStyle}>
                       <div style={priceStyle}>
                         {course.is_free ? (
-                          <span>{t.freeLabel || "مجاني"} 💚</span>
+                          <span>{t.free} 💚</span>  {/* ✅ تصحيح: كان freeLabel */}
                         ) : (
                           <span>{course.price} {course.currency || "π"}</span>
                         )}
@@ -652,7 +656,7 @@ export default function HomePage() {
                           e.currentTarget.style.boxShadow = "0 8px 24px rgba(102, 126, 234, 0.35)";
                         }}
                       >
-                        {t.startNowBtn || "ابدأ الآن"} →
+                        {t.startNow} →  {/* ✅ تصحيح: كان startNowBtn */}
                       </button>
                     </div>
                   </div>
@@ -680,7 +684,7 @@ export default function HomePage() {
           }}
         >
           <div style={{ fontSize: 20, marginBottom: 4 }}>👤</div>
-          {t.navProfile || "الملف الشخصي"}
+          {t.profile}  {/* ✅ تصحيح: كان navProfile */}
         </Link>
 
         <Link 
@@ -698,12 +702,12 @@ export default function HomePage() {
           }}
         >
           <div style={{ fontSize: 20, marginBottom: 4 }}>➕</div>
-          {t.navCreateCourse || "أنشئ دورة"}
+          {t.createCourse}  {/* ✅ تصحيح: كان navCreateCourse */}
         </Link>
 
         <Link href="/" style={navItemStyle(true)}>
           <div style={{ fontSize: 20, marginBottom: 4 }}>🏠</div>
-          {t.navHome || "الرئيسية"}
+          {t.home}  {/* ✅ تصحيح: كان navHome */}
         </Link>
       </nav>
 
