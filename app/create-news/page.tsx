@@ -4,6 +4,7 @@ import type { CSSProperties, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { createSupabaseClient } from "@/lib/supabase/client";
 import { translations, type Lang, getDirection } from "@/lib/i18n";
 
 type CachedPiUser = {
@@ -21,9 +22,12 @@ export default function CreateNewsPage() {
   const [excerpt, setExcerpt] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState("general");
-  const [imageUrl, setImageUrl] = useState("");
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [status, setStatus] = useState("");
 
   const t = translations[lang];
@@ -48,6 +52,46 @@ export default function CreateNewsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  const uploadNewsImage = async () => {
+    if (!imageFile) return "";
+
+    const supabase = createSupabaseClient();
+
+    const fileExt = imageFile.name.split(".").pop() || "jpg";
+    const fileName = `news-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${fileExt}`;
+    const filePath = `news/${fileName}`;
+
+    setUploadingImage(true);
+
+    const { error: uploadError } = await supabase.storage
+      .from("news-images")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      setUploadingImage(false);
+      throw new Error(uploadError.message);
+    }
+
+    const { data } = supabase.storage.from("news-images").getPublicUrl(filePath);
+
+    setUploadingImage(false);
+
+    return data.publicUrl;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -65,6 +109,12 @@ export default function CreateNewsPage() {
       setLoading(true);
       setStatus(lang === "ar" ? "جاري نشر الخبر..." : "Publishing news...");
 
+      let uploadedImageUrl = "";
+
+      if (imageFile) {
+        uploadedImageUrl = await uploadNewsImage();
+      }
+
       const res = await fetch("/api/news", {
         method: "POST",
         headers: {
@@ -77,26 +127,38 @@ export default function CreateNewsPage() {
           content,
           excerpt,
           category,
-          image_url: imageUrl.trim() || null,
+          image_url: uploadedImageUrl || null,
         }),
       });
 
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(json?.error || (lang === "ar" ? "فشل نشر الخبر" : "Failed to publish news"));
+        throw new Error(
+          json?.error || (lang === "ar" ? "فشل نشر الخبر" : "Failed to publish news")
+        );
       }
 
       setStatus(lang === "ar" ? "تم نشر الخبر بنجاح" : "News published successfully");
+
+      setTitle("");
+      setExcerpt("");
+      setContent("");
+      setCategory("general");
+      setImageFile(null);
+      setImagePreview("");
 
       setTimeout(() => {
         router.push("/news");
       }, 1000);
     } catch (error: any) {
       console.error(error);
-      setStatus(error?.message || (lang === "ar" ? "فشل نشر الخبر" : "Failed to publish news"));
+      setStatus(
+        error?.message || (lang === "ar" ? "فشل نشر الخبر" : "Failed to publish news")
+      );
     } finally {
       setLoading(false);
+      setUploadingImage(false);
     }
   };
 
@@ -221,14 +283,44 @@ export default function CreateNewsPage() {
 
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>
-                {lang === "ar" ? "رابط الصورة" : "Image URL"}
+                {lang === "ar" ? "صورة الخبر" : "News Image"}
               </label>
+
               <input
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setImageFile(file);
+
+                  if (imagePreview) {
+                    URL.revokeObjectURL(imagePreview);
+                  }
+
+                  if (file) {
+                    setImagePreview(URL.createObjectURL(file));
+                  } else {
+                    setImagePreview("");
+                  }
+                }}
                 style={inputStyle}
-                placeholder="https://..."
               />
+
+              {imagePreview ? (
+                <div style={{ marginTop: 14 }}>
+                  <img
+                    src={imagePreview}
+                    alt="preview"
+                    style={{
+                      width: "100%",
+                      maxHeight: 240,
+                      objectFit: "cover",
+                      borderRadius: 16,
+                      border: "1px solid var(--border-color)",
+                    }}
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div style={{ marginBottom: 20 }}>
@@ -239,12 +331,14 @@ export default function CreateNewsPage() {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 style={{ ...inputStyle, minHeight: 180, resize: "vertical" }}
-                placeholder={lang === "ar" ? "اكتب محتوى الخبر هنا..." : "Write the content here..."}
+                placeholder={
+                  lang === "ar" ? "اكتب محتوى الخبر هنا..." : "Write the content here..."
+                }
               />
             </div>
 
-            <button type="submit" disabled={loading} style={buttonStyle}>
-              {loading
+            <button type="submit" disabled={loading || uploadingImage} style={buttonStyle}>
+              {loading || uploadingImage
                 ? lang === "ar"
                   ? "جاري نشر الخبر..."
                   : "Publishing news..."
