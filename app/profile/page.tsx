@@ -10,11 +10,7 @@ type CachedPiUser = {
   username: string;
 };
 
-function FloatingShape({
-  style,
-}: {
-  style?: CSSProperties;
-}) {
+function FloatingShape({ style }: { style?: CSSProperties }) {
   return (
     <div
       style={{
@@ -146,18 +142,31 @@ export default function ProfilePage() {
       username: "اسم المستخدم",
       logout: "تسجيل الخروج",
       connectPi: "ربط حساب Pi",
+
       myCourses: "دوراتي",
       myCoursesSub: "راجع الدورات التي أنشأتها أو التحقت بها",
+
+      courses: "الدورات",
+      coursesSub: "كل الدورات المرئية والملفات",
+
+      writtenCourses: "الدورات المكتوبة",
+      writtenCoursesSub: "كل الدورات النصية داخل الصفحة",
+
       browseCourses: "استكشاف الدورات",
       browseCoursesSub: "اكتشف محتوى جديد ومميز",
+
       createCourse: "أنشئ دورة",
       createCourseSub: "ابدأ ببناء دورتك التعليمية",
+
       createWrittenCourse: "دورة مكتوبة",
       createWrittenCourseSub: "أنشئ محتوى نصي منظم وجاهز للنشر",
+
       visitorDashboard: "لوحة الزوار",
       visitorDashboardSub: "عرض مختصر لتفاعل المستخدمين",
+
       addNews: "إضافة الأخبار",
       addNewsSub: "انشر جديد المنصة والمقالات",
+
       home: "الرئيسية",
       profile: "الملف",
     },
@@ -170,18 +179,31 @@ export default function ProfilePage() {
       username: "Username",
       logout: "Log out",
       connectPi: "Connect Pi",
+
       myCourses: "My Courses",
       myCoursesSub: "Review your created and enrolled courses",
+
+      courses: "Courses",
+      coursesSub: "All media courses",
+
+      writtenCourses: "Written Courses",
+      writtenCoursesSub: "All article-based courses",
+
       browseCourses: "Browse Courses",
       browseCoursesSub: "Discover new and featured content",
+
       createCourse: "Create Course",
       createCourseSub: "Start building your learning experience",
+
       createWrittenCourse: "Written Course",
       createWrittenCourseSub: "Create structured text content",
+
       visitorDashboard: "Visitor Dashboard",
       visitorDashboardSub: "See audience activity and stats",
+
       addNews: "Add News",
       addNewsSub: "Publish updates and articles",
+
       home: "Home",
       profile: "Profile",
     },
@@ -405,7 +427,8 @@ export default function ProfilePage() {
         style={{
           width: 180,
           height: 180,
-          background: "linear-gradient(135deg, rgba(99,102,241,0.40), rgba(139,92,246,0.25))",
+          background:
+            "linear-gradient(135deg, rgba(99,102,241,0.40), rgba(139,92,246,0.25))",
           top: 80,
           left: -50,
         }}
@@ -414,7 +437,8 @@ export default function ProfilePage() {
         style={{
           width: 220,
           height: 220,
-          background: "linear-gradient(135deg, rgba(59,130,246,0.28), rgba(16,185,129,0.20))",
+          background:
+            "linear-gradient(135deg, rgba(59,130,246,0.28), rgba(16,185,129,0.20))",
           top: 420,
           right: -80,
         }}
@@ -423,7 +447,8 @@ export default function ProfilePage() {
         style={{
           width: 160,
           height: 160,
-          background: "linear-gradient(135deg, rgba(236,72,153,0.22), rgba(168,85,247,0.20))",
+          background:
+            "linear-gradient(135deg, rgba(236,72,153,0.22), rgba(168,85,247,0.20))",
           bottom: 120,
           left: -40,
         }}
@@ -473,6 +498,20 @@ export default function ProfilePage() {
         />
 
         <MenuCard
+          href="/courses"
+          title={text.courses}
+          subtitle={text.coursesSub}
+          icon="🎓"
+        />
+
+        <MenuCard
+          href="/written-courses"
+          title={text.writtenCourses}
+          subtitle={text.writtenCoursesSub}
+          icon="📝"
+        />
+
+        <MenuCard
           href="/"
           title={text.browseCourses}
           subtitle={text.browseCoursesSub}
@@ -506,21 +545,6 @@ export default function ProfilePage() {
           subtitle={text.addNewsSub}
           icon="📰"
         />
-
-        <MenuCard
-  href="/courses"
-  title={lang === "ar" ? "الدورات" : "Courses"}
-  subtitle={lang === "ar" ? "كل الدورات المرئية والملفات" : "All media courses"}
-  icon="🎓"
-/>
-
-<MenuCard
-  href="/written-courses"
-  title={lang === "ar" ? "الدورات المكتوبة" : "Written Courses"}
-  subtitle={lang === "ar" ? "الدورات النصية داخل الصفحة" : "Article courses"}
-  icon="✍️"
-/>
-
       </div>
 
       <nav style={bottomNavStyle}>
@@ -541,4 +565,3 @@ export default function ProfilePage() {
     </main>
   );
 }
-
