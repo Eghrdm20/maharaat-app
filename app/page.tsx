@@ -98,7 +98,7 @@ export default function HomePage() {
 
   const mainStyle: CSSProperties = {
     minHeight: "100vh",
-    paddingBottom: 100,
+    paddingBottom: 110,
     background: "var(--bg-primary)",
     fontFamily: "var(--font-tajawal), sans-serif",
     position: "relative",
@@ -351,14 +351,14 @@ export default function HomePage() {
     transform: "translateX(-50%)",
     width: "100%",
     maxWidth: 650,
-    background: "rgba(255, 255, 255, 0.95)",
+    background: "rgba(255, 255, 255, 0.96)",
     backdropFilter: "blur(20px)",
     WebkitBackdropFilter: "blur(20px)",
     borderTop: "1px solid var(--border-color)",
-    padding: "10px 12px",
+    padding: "8px 10px",
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 6,
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gap: 4,
     boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.1)",
     zIndex: 100,
   };
@@ -394,19 +394,19 @@ export default function HomePage() {
       ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
       : "transparent",
     color: active ? "white" : "var(--text-secondary)",
-    padding: "10px 6px",
+    padding: "8px 4px",
     borderRadius: "16px",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: active ? 800 : 600,
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    boxShadow: active ? "0 8px 24px rgba(102, 126, 234, 0.35)" : "none",
+    boxShadow: active ? "0 8px 24px rgba(102, 126, 234, 0.28)" : "none",
     transform: active ? "translateY(-2px)" : "translateY(0)",
-    position: "relative",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
+    minHeight: 68,
   });
 
   return (
@@ -623,19 +623,29 @@ export default function HomePage() {
       </div>
 
       <nav style={navStyle}>
-        <Link href="/profile" style={navItemStyle(false)}>
-          <div style={{ fontSize: 18, marginBottom: 3 }}>👤</div>
-          <span>{t.profile}</span>
+        <Link href="/" style={navItemStyle(true)}>
+          <div style={{ fontSize: 18, marginBottom: 2 }}>🏠</div>
+          <span>{lang === "ar" ? "الرئيسية" : "Home"}</span>
+        </Link>
+
+        <Link href="/courses" style={navItemStyle(false)}>
+          <div style={{ fontSize: 18, marginBottom: 2 }}>🎓</div>
+          <span>{lang === "ar" ? "الدورات" : "Courses"}</span>
+        </Link>
+
+        <Link href="/written-courses" style={navItemStyle(false)}>
+          <div style={{ fontSize: 18, marginBottom: 2 }}>📝</div>
+          <span>{lang === "ar" ? "المكتوبة" : "Written"}</span>
         </Link>
 
         <Link href="/news" style={navItemStyle(false)}>
-          <div style={{ fontSize: 18, marginBottom: 3 }}>📰</div>
+          <div style={{ fontSize: 18, marginBottom: 2 }}>📰</div>
           <span>{lang === "ar" ? "أخبار" : "News"}</span>
         </Link>
 
-        <Link href="/" style={navItemStyle(true)}>
-          <div style={{ fontSize: 18, marginBottom: 3 }}>🏠</div>
-          <span>{t.home}</span>
+        <Link href="/profile" style={navItemStyle(false)}>
+          <div style={{ fontSize: 18, marginBottom: 2 }}>👤</div>
+          <span>{lang === "ar" ? "الملف" : "Profile"}</span>
         </Link>
       </nav>
 
