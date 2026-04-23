@@ -19,6 +19,7 @@ type Course = {
   price: number | string | null;
   currency: string | null;
   content_type?: string | null;
+  is_deleted?: boolean | null;
 };
 
 export default function CoursesPage() {
@@ -44,6 +45,7 @@ export default function CoursesPage() {
         setError("");
 
         const supabase = createSupabaseClient();
+
         const { data, error } = await supabase
           .from("courses")
           .select("*")
@@ -52,17 +54,18 @@ export default function CoursesPage() {
           .order("id", { ascending: false });
 
         if (error) throw new Error(error.message);
+
         setCourses((data || []) as Course[]);
       } catch (err: any) {
         console.error(err);
-        setError("فشل تحميل الدورات");
+        setError(lang === "ar" ? "فشل تحميل الدورات" : "Failed to load courses");
       } finally {
         setLoading(false);
       }
     };
 
     loadCourses();
-  }, []);
+  }, [lang]);
 
   const pageStyle: CSSProperties = {
     minHeight: "100vh",
@@ -89,27 +92,45 @@ export default function CoursesPage() {
     marginBottom: 18,
   };
 
+  const infoStyle: CSSProperties = {
+    background: "var(--bg-card)",
+    border: "1px solid var(--border-color)",
+    borderRadius: 20,
+    padding: 22,
+    textAlign: "center",
+    color: "var(--text-secondary)",
+  };
+
   return (
     <main style={pageStyle} dir={dir}>
       <div style={containerStyle}>
         <div style={{ marginBottom: 20 }}>
-          <Link href="/profile" style={{ textDecoration: "none", color: "var(--text-secondary)" }}>
+          <Link
+            href="/profile"
+            style={{ textDecoration: "none", color: "var(--text-secondary)" }}
+          >
             ← {lang === "ar" ? "العودة" : "Back"}
           </Link>
+
           <h1 style={{ fontSize: 34, fontWeight: 900, margin: "12px 0 8px" }}>
             {lang === "ar" ? "الدورات" : "Courses"}
           </h1>
+
           <p style={{ color: "var(--text-secondary)" }}>
-            {lang === "ar" ? "جميع الدورات المرئية والملفات" : "All media courses"}
+            {lang === "ar"
+              ? "كل الدورات المرئية والمنشورة"
+              : "All published media courses"}
           </p>
         </div>
 
         {loading ? (
-          <div>جاري التحميل...</div>
+          <div style={infoStyle}>{lang === "ar" ? "جاري التحميل..." : "Loading..."}</div>
         ) : error ? (
-          <div>{error}</div>
+          <div style={infoStyle}>{error}</div>
         ) : courses.length === 0 ? (
-          <div>لا توجد دورات بعد</div>
+          <div style={infoStyle}>
+            {lang === "ar" ? "لا توجد دورات بعد" : "No courses yet"}
+          </div>
         ) : (
           courses.map((course) => (
             <Link key={course.id} href={`/courses/${course.id}`} style={cardStyle}>
@@ -127,11 +148,11 @@ export default function CoursesPage() {
                 </h2>
 
                 <div style={{ color: "var(--text-secondary)", marginBottom: 10 }}>
-                  بواسطة {course.instructor_name}
+                  {lang === "ar" ? "بواسطة" : "By"} {course.instructor_name}
                 </div>
 
                 <p style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
-                  {course.description || "لا يوجد وصف"}
+                  {course.description || (lang === "ar" ? "لا يوجد وصف" : "No description")}
                 </p>
 
                 <div
@@ -147,16 +168,33 @@ export default function CoursesPage() {
                 >
                   <div style={{ textAlign: "center" }}>
                     <strong>{course.duration || "-"}</strong>
-                    <div>المدة</div>
+                    <div>{lang === "ar" ? "المدة" : "Duration"}</div>
                   </div>
+
                   <div style={{ textAlign: "center" }}>
                     <strong>{course.students_count ?? 0}</strong>
-                    <div>الطلاب</div>
+                    <div>{lang === "ar" ? "الطلاب" : "Students"}</div>
                   </div>
+
                   <div style={{ textAlign: "center" }}>
                     <strong>{course.rating ?? 0}</strong>
-                    <div>التقييم</div>
+                    <div>{lang === "ar" ? "التقييم" : "Rating"}</div>
                   </div>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 16,
+                    fontWeight: 900,
+                    fontSize: 20,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  {course.is_free
+                    ? lang === "ar"
+                      ? "مجاني"
+                      : "Free"
+                    : `${course.price} ${course.currency || "π"}`}
                 </div>
               </div>
             </Link>
