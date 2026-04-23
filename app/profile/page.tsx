@@ -1,282 +1,255 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import type { CSSProperties } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { getDirection, type Lang } from "@/lib/i18n";
+
+type CachedPiUser = {
+  uid: string;
+  username: string;
+};
 
 export default function ProfilePage() {
-  const [piConnected, setPiConnected] = useState(false);
+  const [lang, setLang] = useState<Lang>("ar");
+  const [piUser, setPiUser] = useState<CachedPiUser | null>(null);
+
+  const dir = useMemo(() => getDirection(lang), [lang]);
+
+  useEffect(() => {
+    const savedLang = (window.localStorage.getItem("app_lang") as Lang) || "ar";
+    setLang(savedLang);
+    document.documentElement.lang = savedLang;
+    document.documentElement.dir = getDirection(savedLang);
+
+    const cachedUser = window.localStorage.getItem("pi_user");
+    if (!cachedUser) return;
+
+    try {
+      const parsed = JSON.parse(cachedUser);
+      if (parsed?.uid && parsed?.username) {
+        setPiUser(parsed);
+      }
+    } catch (error) {
+      console.error("Failed to parse pi_user", error);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    window.localStorage.removeItem("pi_user");
+    setPiUser(null);
+  };
+
+  const text = {
+    ar: {
+      title: "الملف الشخصي",
+      piTitle: "ربط حساب Pi",
+      connected: "الحالة: تم استرجاع الحساب المحفوظ",
+      notConnected: "الحالة: لم يتم ربط حساب Pi بعد",
+      username: "اسم مستخدم Pi",
+      logout: "تسجيل الخروج",
+      myCourses: "دوراتي",
+      browseCourses: "استكشاف الدورات",
+      createCourse: "أنشئ دورة",
+      createWrittenCourse: "إنشاء دورة مكتوبة",
+      visitorDashboard: "لوحة الزوار",
+      addNews: "إضافة الأخبار",
+      home: "الرئيسية",
+      profile: "الملف الشخصي",
+    },
+    en: {
+      title: "Profile",
+      piTitle: "Pi Account",
+      connected: "Status: Restored saved account",
+      notConnected: "Status: Pi account not connected yet",
+      username: "Pi Username",
+      logout: "Log out",
+      myCourses: "My Courses",
+      browseCourses: "Browse Courses",
+      createCourse: "Create Course",
+      createWrittenCourse: "Create Written Course",
+      visitorDashboard: "Visitor Dashboard",
+      addNews: "Add News",
+      home: "Home",
+      profile: "Profile",
+    },
+  }[lang];
+
+  const pageStyle: CSSProperties = {
+    minHeight: "100vh",
+    paddingBottom: 110,
+    background: "var(--bg-primary)",
+    fontFamily: "var(--font-tajawal), sans-serif",
+  };
+
+  const containerStyle: CSSProperties = {
+    maxWidth: 720,
+    margin: "0 auto",
+    padding: "20px 16px",
+  };
+
+  const titleStyle: CSSProperties = {
+    fontSize: 34,
+    fontWeight: 900,
+    color: "var(--text-primary)",
+    marginBottom: 20,
+    textAlign: "right",
+  };
+
+  const sectionStyle: CSSProperties = {
+    background: "var(--bg-card)",
+    borderRadius: 28,
+    padding: 20,
+    boxShadow: "var(--shadow-md)",
+    marginBottom: 18,
+    border: "1px solid var(--border-color)",
+  };
+
+  const cardTitleStyle: CSSProperties = {
+    fontSize: 26,
+    fontWeight: 900,
+    color: "#0f172a",
+    marginBottom: 18,
+  };
+
+  const statusBoxStyle: CSSProperties = {
+    background: "rgba(16, 185, 129, 0.12)",
+    border: "1px solid rgba(16, 185, 129, 0.22)",
+    color: "#065f46",
+    borderRadius: 22,
+    padding: "18px 16px",
+    marginBottom: 18,
+    lineHeight: 1.9,
+    fontSize: 16,
+  };
+
+  const ghostButtonStyle: CSSProperties = {
+    width: "fit-content",
+    minWidth: 170,
+    padding: "18px 22px",
+    borderRadius: 22,
+    border: "1px solid #cbd5e1",
+    background: "#fff",
+    color: "#0f172a",
+    fontSize: 18,
+    fontWeight: 900,
+    cursor: "pointer",
+  };
+
+  const menuLinkStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 92,
+    padding: "0 24px",
+    borderRadius: 28,
+    background: "var(--bg-card)",
+    color: "var(--text-primary)",
+    textDecoration: "none",
+    fontSize: 22,
+    fontWeight: 900,
+    boxShadow: "var(--shadow-sm)",
+    marginBottom: 18,
+    border: "1px solid var(--border-color)",
+  };
+
+  const bottomNavStyle: CSSProperties = {
+    position: "fixed",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    background: "rgba(255,255,255,0.96)",
+    borderTop: "1px solid #e5e7eb",
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    padding: "12px 14px max(12px, env(safe-area-inset-bottom))",
+    gap: 10,
+    zIndex: 50,
+  };
+
+  const navItemStyle = (active: boolean): CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 64,
+    borderRadius: 22,
+    textDecoration: "none",
+    fontWeight: 900,
+    fontSize: 18,
+    background: active ? "#08122f" : "transparent",
+    color: active ? "#fff" : "#111827",
+  });
 
   return (
-    <div style={{
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      backgroundColor: '#f5f7fa',
-      minHeight: '100vh',
-      paddingBottom: '120px',
-    }}>
-      
-      {/* Header */}
-      <div style={{
-        padding: '20px',
-        textAlign: 'center',
-        background: 'white',
-        marginBottom: '20px'
-      }}>
-        <h1 style={{
-          fontSize: '32px',
-          fontWeight: '700',
-          color: '#1a1a1a',
-          margin: '10px 0'
-        }}>
-          Profile
-        </h1>
+    <main style={pageStyle} dir={dir}>
+      <div style={containerStyle}>
+        <h1 style={titleStyle}>{text.title}</h1>
+
+        <section style={sectionStyle}>
+          <div style={cardTitleStyle}>{text.piTitle}</div>
+
+          <div style={{ color: "var(--text-secondary)", fontSize: 18, marginBottom: 14 }}>
+            {piUser ? text.connected : text.notConnected}
+          </div>
+
+          {piUser ? (
+            <>
+              <div style={statusBoxStyle}>
+                <div>
+                  {text.username}: {piUser.username}
+                </div>
+                <div>UID: {piUser.uid}</div>
+              </div>
+
+              <button onClick={handleLogout} style={ghostButtonStyle}>
+                {text.logout}
+              </button>
+            </>
+          ) : (
+            <Link href="/profile" style={{ ...ghostButtonStyle, display: "inline-flex", textDecoration: "none", alignItems: "center", justifyContent: "center" }}>
+              ربط حساب Pi
+            </Link>
+          )}
+        </section>
+
+        <Link href="/my-courses" style={menuLinkStyle}>
+          <span>{text.myCourses}</span>
+        </Link>
+
+        <Link href="/" style={menuLinkStyle}>
+          <span>{text.browseCourses}</span>
+        </Link>
+
+        <Link href="/create-course" style={menuLinkStyle}>
+          <span>{text.createCourse}</span>
+        </Link>
+
+        <Link href="/create-written-course" style={menuLinkStyle}>
+          <span>{text.createWrittenCourse}</span>
+        </Link>
+
+        <Link href="/visitor-dashboard" style={menuLinkStyle}>
+          <span>{text.visitorDashboard}</span>
+        </Link>
+
+        <Link href="/create-news" style={menuLinkStyle}>
+          <span>{text.addNews}</span>
+        </Link>
       </div>
 
-      {/* Main Container */}
-      <div style={{ padding: '0 16px' }}>
-        
-        {/* Pi Account Card - محسن */}
-        <div style={{
-          background: 'white',
-          borderRadius: '24px',
-          padding: '28px 24px',
-          marginBottom: '16px',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-          border: '1px solid rgba(0,0,0,0.04)'
-        }}>
-          <h2 style={{
-            fontSize: '22px',
-            fontWeight: '700',
-            color: '#1a1a1a',
-            marginBottom: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <span style={{
-              width: '32px',
-              height: '32px',
-              background: 'linear-gradient(135deg, #667eea, #764ba2)',
-              borderRadius: '8px',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '18px',
-              fontWeight: 'bold'
-            }}>π</span>
-            Pi Account
-          </h2>
-          
-          <p style={{
-            fontSize: '15px',
-            color: piConnected ? '#00b894' : '#636e72',
-            marginBottom: '20px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <span style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: piConnected ? '#00b894' : '#fdcb6e',
-              display: 'inline-block'
-            }}/>
-            Status: {piConnected ? 'Pi account connected ✓' : 'Pi account not connected yet'}
-          </p>
+      <nav style={bottomNavStyle}>
+        <Link href="/" style={navItemStyle(false)}>
+          {text.home}
+        </Link>
 
-          <button
-            onClick={() => setPiConnected(!piConnected)}
-            style={{
-              width: '100%',
-              padding: '14px',
-              background: piConnected 
-                ? 'linear-gradient(135deg, #00b894, #00cec9)'
-                : 'linear-gradient(135deg, #667eea, #764ba2)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '16px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: piConnected 
-                ? '0 4px 15px rgba(0,184,148,0.3)'
-                : '0 4px 15px rgba(102,126,234,0.3)',
-              fontFamily: 'inherit'
-            }}
-          >
-            {piConnected ? '✓ Disconnect Pi' : 'ربط حساب Pi'}
-          </button>
-        </div>
+        <Link href="/create-course" style={navItemStyle(false)}>
+          {text.createCourse}
+        </Link>
 
-        {/* My Courses Button - محسن */}
-        <button style={{
-          width: '100%',
-          padding: '20px 24px',
-          background: 'white',
-          border: '1px solid rgba(0,0,0,0.04)',
-          borderRadius: '20px',
-          marginBottom: '12px',
-          fontSize: '18px',
-          fontWeight: '600',
-          color: '#1a1a1a',
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontFamily: 'inherit'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 4px 16px rgba(102,126,234,0.15)';
-          e.currentTarget.style.borderColor = 'rgba(102,126,234,0.2)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
-          e.currentTarget.style.borderColor = 'rgba(0,0,0,0.04)';
-        }}
-        >
-          <span>📚 My Courses</span>
-          <span style={{ color: '#b2bec3', fontSize: '20px' }}>←</span>
-        </button>
-
-        {/* Browse Courses Button - محسن */}
-        <button style={{
-          width: '100%',
-          padding: '20px 24px',
-          background: 'white',
-          border: '1px solid rgba(0,0,0,0.04)',
-          borderRadius: '20px',
-          marginBottom: '12px',
-          fontSize: '18px',
-          fontWeight: '600',
-          color: '#1a1a1a',
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontFamily: 'inherit'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,217,255,0.15)';
-          e.currentTarget.style.borderColor = 'rgba(0,217,255,0.2)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
-          e.currentTarget.style.borderColor = 'rgba(0,0,0,0.04)';
-        }}
-        >
-          <span>🔍 Browse Courses</span>
-          <span style={{ color: '#b2bec3', fontSize: '20px' }}>←</span>
-        </button>
-
-      </div>
-
-      {/* Bottom Navigation - محسن */}
-      <nav style={{
-        position: 'fixed',
-        bottom: '60px',
-        left: '0',
-        right: '0',
-        background: 'white',
-        padding: '12px 20px 16px',
-        display: 'flex',
-        justifyContent: 'space-around',
-        alignItems: 'center',
-        borderTop: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        {[
-          { label: 'Home', icon: '🏠', active: false },
-          { label: 'Create Course', icon: '➕', active: false },
-          { label: 'Profile', icon: '👤', active: true }
-        ].map((item, idx) => (
-          <button
-            key={idx}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: item.active 
-                ? 'linear-gradient(135deg, #2d3436, #1a1a1a)' 
-                : 'transparent',
-              color: item.active ? 'white' : '#b2bec3',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '16px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              fontFamily: 'inherit',
-              fontSize: '13px',
-              fontWeight: '600',
-              boxShadow: item.active ? '0 4px 12px rgba(0,0,0,0.2)' : 'none',
-              transform: item.active ? 'scale(1.05)' : 'scale(1)'
-            }}
-          >
-            <span style={{ fontSize: '20px' }}>{item.icon}</span>
-            <span>{item.label}</span>
-          </button>
-        ))}
+        <Link href="/profile" style={navItemStyle(true)}>
+          {text.profile}
+        </Link>
       </nav>
-
-      {/* Browser Bar - محسن */}
-      <div style={{
-        position: 'fixed',
-        bottom: '16px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        background: 'white',
-        padding: '10px 20px',
-        borderRadius: '50px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        width: 'calc(100% - 40px)',
-        maxWidth: '450px',
-        border: '1px solid rgba(0,0,0,0.04)'
-      }}>
-        <div style={{
-          width: '28px',
-          height: '28px',
-          borderRadius: '8px',
-          background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontWeight: 'bold',
-          fontSize: '12px'
-        }}>M</div>
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '13px',
-          color: '#636e72'
-        }}>
-          🔒 maharaat-app.vercel.app
-        </div>
-        <span style={{ 
-          color: '#636e72', 
-          fontSize: '18px', 
-          cursor: 'pointer',
-          transition: 'transform 0.3s ease'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'rotate(180deg)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'rotate(0deg)'}
-        >🔄</span>
-      </div>
-
-    </div>
+    </main>
   );
 }
