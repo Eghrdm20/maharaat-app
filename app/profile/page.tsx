@@ -17,6 +17,15 @@ type EarningsState = {
   currency: string;
 };
 
+type WithdrawalItem = {
+  id: number;
+  amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  processed_txid?: string | null;
+};
+
 function FloatingShape({ style }: { style?: CSSProperties }) {
   return (
     <div
@@ -112,6 +121,7 @@ function MenuCard({
 export default function ProfilePage() {
   const [lang, setLang] = useState<Lang>("ar");
   const [piUser, setPiUser] = useState<CachedPiUser | null>(null);
+
   const [earnings, setEarnings] = useState<EarningsState>({
     totalSales: 0,
     totalGross: 0,
@@ -119,6 +129,13 @@ export default function ProfilePage() {
     currency: "PI",
   });
   const [earningsLoading, setEarningsLoading] = useState(true);
+
+  const [walletAddress, setWalletAddress] = useState("");
+  const [availableBalance, setAvailableBalance] = useState(0);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawMessage, setWithdrawMessage] = useState("");
+  const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
 
   const dir = useMemo(() => getDirection(lang), [lang]);
 
@@ -190,6 +207,38 @@ export default function ProfilePage() {
     void loadEarnings();
   }, [piUser?.uid]);
 
+  useEffect(() => {
+    const loadWithdrawals = async () => {
+      if (!piUser?.uid) {
+        setAvailableBalance(0);
+        setWithdrawals([]);
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `/api/withdrawals/history?uid=${encodeURIComponent(piUser.uid)}`,
+          { cache: "no-store" }
+        );
+
+        const json = await res.json();
+
+        if (!res.ok || !json?.ok) {
+          throw new Error(json?.error || "Failed to load withdrawals");
+        }
+
+        setAvailableBalance(Number(json.availableBalance || 0));
+        setWithdrawals(Array.isArray(json.withdrawals) ? json.withdrawals : []);
+      } catch (error) {
+        console.error("Failed to load withdrawals:", error);
+        setAvailableBalance(0);
+        setWithdrawals([]);
+      }
+    };
+
+    void loadWithdrawals();
+  }, [piUser?.uid]);
+
   const handleLogout = () => {
     window.localStorage.removeItem("pi_user");
     setPiUser(null);
@@ -199,6 +248,80 @@ export default function ProfilePage() {
       totalNet: 0,
       currency: "PI",
     });
+    setAvailableBalance(0);
+    setWithdrawals([]);
+    setWalletAddress("");
+    setWithdrawAmount("");
+    setWithdrawMessage("");
+  };
+
+  const handleWithdrawRequest = async () => {
+    if (!piUser?.uid || !piUser?.username) {
+      setWithdrawMessage(lang === "ar" ? "يجب ربط حساب Pi أولًا" : "Connect Pi first");
+      return;
+    }
+
+    if (!walletAddress.trim()) {
+      setWithdrawMessage(lang === "ar" ? "أدخل عنوان المحفظة" : "Enter wallet address");
+      return;
+    }
+
+    const amount = Number(withdrawAmount);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setWithdrawMessage(lang === "ar" ? "أدخل مبلغًا صحيحًا" : "Enter a valid amount");
+      return;
+    }
+
+    try {
+      setWithdrawLoading(true);
+      setWithdrawMessage("");
+
+      const res = await fetch("/api/withdrawals/request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uid: piUser.uid,
+          username: piUser.username,
+          walletAddress,
+          amount,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Withdrawal request failed");
+      }
+
+      setAvailableBalance(Number(json.availableBalance || 0));
+      setWithdrawAmount("");
+      setWithdrawMessage(
+        lang === "ar"
+          ? "تم إرسال طلب السحب بنجاح"
+          : "Withdrawal request submitted successfully"
+      );
+
+      const historyRes = await fetch(
+        `/api/withdrawals/history?uid=${encodeURIComponent(piUser.uid)}`,
+        { cache: "no-store" }
+      );
+      const historyJson = await historyRes.json();
+
+      if (historyRes.ok && historyJson?.ok) {
+        setAvailableBalance(Number(historyJson.availableBalance || 0));
+        setWithdrawals(Array.isArray(historyJson.withdrawals) ? historyJson.withdrawals : []);
+      }
+    } catch (error: any) {
+      setWithdrawMessage(
+        error?.message ||
+          (lang === "ar" ? "فشل إرسال طلب السحب" : "Failed to submit request")
+      );
+    } finally {
+      setWithdrawLoading(false);
+    }
   };
 
   const text = {
@@ -211,27 +334,48 @@ export default function ProfilePage() {
       username: "اسم المستخدم",
       logout: "تسجيل الخروج",
       connectPi: "ربط حساب Pi",
+
       earningsTitle: "أرباحي",
       earningsLoading: "جاري تحميل الأرباح...",
       totalSales: "عدد المبيعات",
       totalGross: "الإجمالي",
       totalNet: "صافي الأرباح",
+
+      withdrawTitle: "سحب الأرباح",
+      availableToWithdraw: "الرصيد القابل للسحب:",
+      walletPlaceholder: "عنوان محفظة Pi",
+      amountPlaceholder: "مبلغ السحب",
+      requestWithdraw: "طلب سحب",
+      requestingWithdraw: "جاري إرسال الطلب...",
+
+      withdrawalHistory: "سجل السحوبات",
+      noWithdrawals: "لا توجد طلبات سحب بعد",
+      statusLabel: "الحالة:",
+
       myCourses: "دوراتي",
       myCoursesSub: "راجع الدورات التي أنشأتها أو التحقت بها",
+
       courses: "الدورات",
       coursesSub: "كل الدورات المرئية والملفات",
+
       writtenCourses: "الدورات المكتوبة",
       writtenCoursesSub: "كل الدورات النصية داخل الصفحة",
+
       browseCourses: "استكشاف الدورات",
       browseCoursesSub: "اكتشف محتوى جديد ومميز",
+
       createCourse: "أنشئ دورة",
       createCourseSub: "ابدأ ببناء دورتك التعليمية",
+
       createWrittenCourse: "دورة مكتوبة",
       createWrittenCourseSub: "أنشئ محتوى نصي منظم وجاهز للنشر",
+
       visitorDashboard: "لوحة الزوار",
       visitorDashboardSub: "عرض مختصر لتفاعل المستخدمين",
+
       addNews: "إضافة الأخبار",
       addNewsSub: "انشر جديد المنصة والمقالات",
+
       home: "الرئيسية",
       profile: "الملف",
     },
@@ -244,27 +388,48 @@ export default function ProfilePage() {
       username: "Username",
       logout: "Log out",
       connectPi: "Connect Pi",
+
       earningsTitle: "My Earnings",
       earningsLoading: "Loading earnings...",
       totalSales: "Sales",
       totalGross: "Gross",
       totalNet: "Net",
+
+      withdrawTitle: "Withdraw Earnings",
+      availableToWithdraw: "Available to withdraw:",
+      walletPlaceholder: "Pi wallet address",
+      amountPlaceholder: "Withdrawal amount",
+      requestWithdraw: "Request Withdrawal",
+      requestingWithdraw: "Submitting...",
+
+      withdrawalHistory: "Withdrawal History",
+      noWithdrawals: "No withdrawal requests yet",
+      statusLabel: "Status:",
+
       myCourses: "My Courses",
       myCoursesSub: "Review your created and enrolled courses",
+
       courses: "Courses",
       coursesSub: "All media courses",
+
       writtenCourses: "Written Courses",
       writtenCoursesSub: "All article-based courses",
+
       browseCourses: "Browse Courses",
       browseCoursesSub: "Discover new and featured content",
+
       createCourse: "Create Course",
       createCourseSub: "Start building your learning experience",
+
       createWrittenCourse: "Written Course",
       createWrittenCourseSub: "Create structured text content",
+
       visitorDashboard: "Visitor Dashboard",
       visitorDashboardSub: "See audience activity and stats",
+
       addNews: "Add News",
       addNewsSub: "Publish updates and articles",
+
       home: "Home",
       profile: "Profile",
     },
@@ -614,6 +779,131 @@ export default function ProfilePage() {
                   {earnings.totalNet} {earnings.currency}
                 </div>
               </div>
+            </div>
+          )}
+        </section>
+
+        <section style={sectionStyle}>
+          <div style={sectionGlow} />
+          <div style={cardTitleStyle}>{text.withdrawTitle}</div>
+
+          <div style={{ ...statusStyle, marginBottom: 14 }}>
+            {text.availableToWithdraw}{" "}
+            <strong>
+              {availableBalance} {earnings.currency}
+            </strong>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            <input
+              value={walletAddress}
+              onChange={(e) => setWalletAddress(e.target.value)}
+              placeholder={text.walletPlaceholder}
+              style={{
+                width: "100%",
+                borderRadius: 18,
+                border: "1px solid rgba(148,163,184,0.25)",
+                padding: "14px 16px",
+                fontSize: 15,
+                outline: "none",
+              }}
+            />
+
+            <input
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+              placeholder={text.amountPlaceholder}
+              type="number"
+              step="0.01"
+              min="0"
+              style={{
+                width: "100%",
+                borderRadius: 18,
+                border: "1px solid rgba(148,163,184,0.25)",
+                padding: "14px 16px",
+                fontSize: 15,
+                outline: "none",
+              }}
+            />
+
+            <button
+              onClick={handleWithdrawRequest}
+              disabled={withdrawLoading}
+              style={{
+                ...primaryButtonStyle,
+                width: "100%",
+              }}
+            >
+              {withdrawLoading ? text.requestingWithdraw : text.requestWithdraw}
+            </button>
+
+            {withdrawMessage ? (
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  background: "rgba(99,102,241,0.08)",
+                  color: "#334155",
+                  fontWeight: 700,
+                }}
+              >
+                {withdrawMessage}
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section style={sectionStyle}>
+          <div style={sectionGlow} />
+          <div style={cardTitleStyle}>{text.withdrawalHistory}</div>
+
+          {withdrawals.length === 0 ? (
+            <div style={statusStyle}>{text.noWithdrawals}</div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gap: 12,
+                position: "relative",
+                zIndex: 1,
+              }}
+            >
+              {withdrawals.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    borderRadius: 20,
+                    padding: 16,
+                    background: "rgba(255,255,255,0.65)",
+                    border: "1px solid rgba(148,163,184,0.18)",
+                  }}
+                >
+                  <div style={{ fontWeight: 900, color: "#0f172a", marginBottom: 6 }}>
+                    {item.amount} {item.currency}
+                  </div>
+
+                  <div style={{ color: "#64748b", fontSize: 14, marginBottom: 6 }}>
+                    {text.statusLabel} {item.status}
+                  </div>
+
+                  <div style={{ color: "#64748b", fontSize: 13 }}>
+                    {item.created_at}
+                  </div>
+
+                  {item.processed_txid ? (
+                    <div style={{ color: "#0f766e", fontSize: 13, marginTop: 6 }}>
+                      TXID: {item.processed_txid}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
             </div>
           )}
         </section>
