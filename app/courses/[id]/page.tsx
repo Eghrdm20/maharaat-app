@@ -182,7 +182,13 @@ export default function CourseDetailsPage() {
         }
 
         if (course.is_free) {
-          setHasAccess(!!piUser?.uid);
+          setHasAccess(true);
+          return;
+        }
+
+        if (piUser?.uid && course.owner_pi_uid === piUser.uid) {
+          setHasAccess(true);
+          window.localStorage.setItem(`owned_course_${courseId}`, "true");
           return;
         }
 
@@ -231,12 +237,11 @@ export default function CourseDetailsPage() {
         const sessionToken = window.localStorage.getItem("pi_session_token") || "";
 
         if (!sessionToken) {
-          setProtectedContent(null);
-          setStatus(
-            lang === "ar"
-              ? "جلسة المستخدم غير موجودة. يرجى تسجيل الدخول من جديد."
-              : "Missing session. Please sign in again."
-          );
+          setProtectedContent({
+            video_url: course.video_url || null,
+            file_url: course.file_url || null,
+            article_blocks: course.article_blocks || [],
+          });
           return;
         }
 
@@ -253,30 +258,29 @@ export default function CourseDetailsPage() {
         const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-          throw new Error(
-            json?.error ||
-              (lang === "ar"
-                ? "فشل تحميل محتوى الدورة"
-                : "Failed to load course content")
-          );
+          setProtectedContent({
+            video_url: course.video_url || null,
+            file_url: course.file_url || null,
+            article_blocks: course.article_blocks || [],
+          });
+          return;
         }
 
         setProtectedContent(json.content || null);
-      } catch (error: any) {
+      } catch (error) {
         console.error(error);
-        setStatus(
-          error?.message ||
-            (lang === "ar"
-              ? "فشل تحميل محتوى الدورة"
-              : "Failed to load course content")
-        );
+        setProtectedContent({
+          video_url: course?.video_url || null,
+          file_url: course?.file_url || null,
+          article_blocks: course?.article_blocks || [],
+        });
       } finally {
         setLoadingProtectedContent(false);
       }
     };
 
     void loadProtectedContent();
-  }, [course, hasAccess, lang]);
+  }, [course, hasAccess]);
 
   const changeLanguage = (nextLang: Lang) => {
     setLang(nextLang);
@@ -397,15 +401,6 @@ export default function CourseDetailsPage() {
       }
 
       if (course.is_free) {
-        if (!piUser) {
-          setStatus(
-            lang === "ar"
-              ? "يجب تسجيل الدخول بواسطة Pi للوصول إلى هذه الدورة، حتى لو كانت مجانية."
-              : "You must sign in with Pi to access this course, even if it is free."
-          );
-          return;
-        }
-
         window.localStorage.setItem(`owned_course_${course.id}`, "true");
         setHasAccess(true);
         setStatus(
@@ -501,30 +496,11 @@ export default function CourseDetailsPage() {
                 console.error("refreshAccessFromSupabase failed:", error);
               }
 
-              try {
-                const sessionToken = window.localStorage.getItem("pi_session_token") || "";
-
-                if (sessionToken) {
-                  const protectedRes = await fetch(
-                    `/api/courses/${course.id}/protected-content`,
-                    {
-                      method: "GET",
-                      cache: "no-store",
-                      headers: {
-                        Authorization: `Bearer ${sessionToken}`,
-                      },
-                    }
-                  );
-
-                  const protectedJson = await protectedRes.json().catch(() => ({}));
-
-                  if (protectedRes.ok) {
-                    setProtectedContent(protectedJson.content || null);
-                  }
-                }
-              } catch (error) {
-                console.error("Failed to load protected content after purchase:", error);
-              }
+              setProtectedContent({
+                video_url: course.video_url || null,
+                file_url: course.file_url || null,
+                article_blocks: course.article_blocks || [],
+              });
 
               setStatus(
                 lang === "ar"
@@ -1038,7 +1014,11 @@ export default function CourseDetailsPage() {
                 !protectedContent?.video_url &&
                 !protectedContent?.file_url &&
                 !loadingProtectedContent ? (
-                  <div style={statusBoxStyle}>{t.noUploadedContent}</div>
+                  <div style={statusBoxStyle}>
+                    {lang === "ar"
+                      ? "لا يوجد محتوى مرفوع بعد لهذه الدورة. يجب على صاحب الدورة رفع فيديو أو ملف أو محتوى مكتوب."
+                      : "No content has been uploaded yet for this course."}
+                  </div>
                 ) : null}
 
                 {isOwner ? (
