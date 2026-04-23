@@ -29,7 +29,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lang, setLang] = useState<Lang>("ar");
-  
+
   const t = translations[lang];
   const dir = getDirection(lang);
 
@@ -96,8 +96,6 @@ export default function HomePage() {
     );
   }, [search, courses]);
 
-  // ====== 🎨 STYLES ======
-  
   const mainStyle: CSSProperties = {
     minHeight: "100vh",
     paddingBottom: 100,
@@ -115,7 +113,7 @@ export default function HomePage() {
   };
 
   const headerStyle: CSSProperties = {
-    textAlign: lang === "ar" ? "center" : "center",
+    textAlign: "center",
     marginBottom: 28,
     animation: "fadeInDown 0.8s ease-out",
   };
@@ -341,12 +339,11 @@ export default function HomePage() {
 
   const loadingBoxStyle: CSSProperties = {
     ...infoBoxStyle,
-    background: "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
+    background:
+      "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
     border: "2px solid rgba(102, 126, 234, 0.15)",
   };
 
-  // ====== NAVIGATION STYLES ======
-  
   const navStyle: CSSProperties = {
     position: "fixed",
     bottom: 0,
@@ -360,7 +357,7 @@ export default function HomePage() {
     borderTop: "1px solid var(--border-color)",
     padding: "10px 12px",
     display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)", // ← 4 أزرار!
+    gridTemplateColumns: "repeat(3, 1fr)",
     gap: 6,
     boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.1)",
     zIndex: 100,
@@ -379,8 +376,8 @@ export default function HomePage() {
     padding: "8px 14px",
     borderRadius: "10px",
     border: "none",
-    background: active 
-      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
+    background: active
+      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
       : "transparent",
     color: active ? "white" : "var(--text-secondary)",
     fontWeight: active ? 700 : 600,
@@ -393,8 +390,8 @@ export default function HomePage() {
   const navItemStyle = (active: boolean): CSSProperties => ({
     textDecoration: "none",
     textAlign: "center",
-    background: active 
-      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
+    background: active
+      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
       : "transparent",
     color: active ? "white" : "var(--text-secondary)",
     padding: "10px 6px",
@@ -412,33 +409,64 @@ export default function HomePage() {
     gap: 2,
   });
 
-  // ====== RENDER ======
   return (
     <main style={{ ...mainStyle, direction: dir }}>
-      {/* Background decorations */}
-      <div style={{
-        position: "fixed", top: -150, left: -150, width: 350, height: 350,
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        opacity: 0.04, borderRadius: "50%", pointerEvents: "none", zIndex: 0,
-      }} />
-      
-      <div style={{
-        position: "fixed", bottom: 100, right: -100, width: 300, height: 300,
-        background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-        opacity: 0.04, borderRadius: "50%", pointerEvents: "none", zIndex: 0,
-      }} />
+      <div
+        style={{
+          position: "fixed",
+          top: -150,
+          left: -150,
+          width: 350,
+          height: 350,
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          opacity: 0.04,
+          borderRadius: "50%",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
+
+      <div
+        style={{
+          position: "fixed",
+          bottom: 100,
+          right: -100,
+          width: 300,
+          height: 300,
+          background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+          opacity: 0.04,
+          borderRadius: "50%",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
 
       <div style={containerStyle}>
-        {/* Header */}
         <header style={headerStyle}>
-          {/* Language Toggle */}
-          <div style={{ 
-            display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 
-          }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
             <div />
             <div style={languageToggleStyle}>
-              <button onClick={() => changeLanguage("ar")} style={langButtonStyle(lang === "ar")} type="button">عربي</button>
-              <button onClick={() => changeLanguage("en")} style={langButtonStyle(lang === "en")} type="button">EN</button>
+              <button
+                onClick={() => changeLanguage("ar")}
+                style={langButtonStyle(lang === "ar")}
+                type="button"
+              >
+                عربي
+              </button>
+              <button
+                onClick={() => changeLanguage("en")}
+                style={langButtonStyle(lang === "en")}
+                type="button"
+              >
+                EN
+              </button>
             </div>
           </div>
 
@@ -446,26 +474,37 @@ export default function HomePage() {
           <p style={subtitleStyle}>{t.homeSubtitle}</p>
         </header>
 
-        {/* Search */}
         <section style={searchSectionStyle}>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`🔍 ${t.searchCourses}`}
             style={searchInputStyle}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "#667eea"; e.currentTarget.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border-color)"; e.currentTarget.style.boxShadow = "var(--shadow-xs)"; }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "#667eea";
+              e.currentTarget.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "var(--border-color)";
+              e.currentTarget.style.boxShadow = "var(--shadow-xs)";
+            }}
           />
         </section>
 
-        {/* Courses */}
         <section>
           <div style={sectionHeaderStyle}>
             <h2 style={sectionTitleStyle}>
               <span>📚</span> {t.courses}
-              <span style={{
-                background: "var(--bg-hover)", padding: "4px 12px", borderRadius: "999px", fontSize: 14, fontWeight: 700, color: "var(--text-muted)",
-              }}>
+              <span
+                style={{
+                  background: "var(--bg-hover)",
+                  padding: "4px 12px",
+                  borderRadius: "999px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "var(--text-muted)",
+                }}
+              >
                 {filteredCourses.length}
               </span>
             </h2>
@@ -488,21 +527,33 @@ export default function HomePage() {
             </div>
           ) : (
             <div style={{ display: "grid", gap: 20 }}>
-              {filteredCourses.map((course, index) => (
+              {filteredCourses.map((course) => (
                 <Link key={course.id} href={`/courses/${course.id}`} style={cardStyle}>
                   <div style={cardImageWrapperStyle}>
                     {course.image_url ? (
-                      <img src={course.image_url} alt={course.title} style={{
-                        width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s ease",
-                      }} />
+                      <img
+                        src={course.image_url}
+                        alt={course.title}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          transition: "transform 0.5s ease",
+                        }}
+                      />
                     ) : (
-                      <div style={{ 
-                        fontSize: 64, 
-                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                        WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
-                      }}>📘</div>
+                      <div
+                        style={{
+                          fontSize: 64,
+                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                        }}
+                      >
+                        📘
+                      </div>
                     )}
-                    
+
                     <div style={{ position: "absolute", top: 14, right: 14 }}>
                       {course.is_new ? (
                         <span style={newBadgeStyle}>✨ {t.new}</span>
@@ -519,9 +570,7 @@ export default function HomePage() {
                       <span>👨‍🏫</span> {t.instructorBy} <strong>{course.instructor_name}</strong>
                     </div>
 
-                    <p style={descriptionStyle}>
-                      {course.description || t.noDescription}
-                    </p>
+                    <p style={descriptionStyle}>{course.description || t.noDescription}</p>
 
                     <div style={statsGridStyle}>
                       <div style={statItemStyle}>
@@ -540,13 +589,27 @@ export default function HomePage() {
 
                     <div style={cardFooterStyle}>
                       <div style={priceStyle}>
-                        {course.is_free ? <span>{t.free} 💚</span> : <span>{course.price} {course.currency || "π"}</span>}
+                        {course.is_free ? (
+                          <span>{t.free} 💚</span>
+                        ) : (
+                          <span>
+                            {course.price} {course.currency || "π"}
+                          </span>
+                        )}
                       </div>
 
                       <button
                         style={startButtonStyle}
-                        onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.05)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(102, 126, 234, 0.5)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(102, 126, 234, 0.35)"; }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "scale(1.05)";
+                          e.currentTarget.style.boxShadow =
+                            "0 12px 32px rgba(102, 126, 234, 0.5)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "scale(1)";
+                          e.currentTarget.style.boxShadow =
+                            "0 8px 24px rgba(102, 126, 234, 0.35)";
+                        }}
                       >
                         {t.startNow} →
                       </button>
@@ -559,43 +622,44 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* 🧭 Bottom Navigation - 4 Tabs! */}
       <nav style={navStyle}>
-        {/* Tab 1: Profile */}
         <Link href="/profile" style={navItemStyle(false)}>
           <div style={{ fontSize: 18, marginBottom: 3 }}>👤</div>
           <span>{t.profile}</span>
         </Link>
 
-        {/* Tab 2: Create Course */}
-        <Link href="/create-course" style={navItemStyle(false)}>
-          <div style={{ fontSize: 18, marginBottom: 3 }}>➕</div>
-          <span>{t.createCourse}</span>
-        </Link>
-
-        {/* Tab 3: News (NEW!) */}
         <Link href="/news" style={navItemStyle(false)}>
           <div style={{ fontSize: 18, marginBottom: 3 }}>📰</div>
-          <span>أخبار</span>
+          <span>{t.news || "أخبار"}</span>
         </Link>
 
-        {/* Tab 4: Home (Active) */}
         <Link href="/" style={navItemStyle(true)}>
           <div style={{ fontSize: 18, marginBottom: 3 }}>🏠</div>
           <span>{t.home}</span>
         </Link>
       </nav>
 
-      {/* Animations */}
       <style jsx global>{`
         @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         @keyframes fadeInDown {
-          from { opacity: 0; transform: translateY(-30px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(-30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
     </main>
