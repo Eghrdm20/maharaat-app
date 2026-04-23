@@ -121,6 +121,7 @@ function MenuCard({
 export default function ProfilePage() {
   const [lang, setLang] = useState<Lang>("ar");
   const [piUser, setPiUser] = useState<CachedPiUser | null>(null);
+  const [connectingPi, setConnectingPi] = useState(false);
 
   const [earnings, setEarnings] = useState<EarningsState>({
     totalSales: 0,
@@ -239,6 +240,83 @@ export default function ProfilePage() {
     void loadWithdrawals();
   }, [piUser?.uid]);
 
+  const handleConnectPi = async () => {
+    try {
+      setConnectingPi(true);
+
+      const Pi = (window as any).Pi;
+
+      if (!Pi) {
+        alert(
+          lang === "ar"
+            ? "افتح التطبيق من Pi Browser أولًا"
+            : "Open the app in Pi Browser first"
+        );
+        return;
+      }
+
+      Pi.init({
+        version: "2.0",
+        sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX === "true",
+      });
+
+      const authResult = await Pi.authenticate(
+        ["username", "payments"],
+        (payment: any) => {
+          console.log("Incomplete payment found:", payment);
+        }
+      );
+
+      const accessToken = authResult?.accessToken;
+      const authUsername = authResult?.user?.username || "";
+
+      if (!accessToken) {
+        throw new Error("Missing access token");
+      }
+
+      const res = await fetch("/api/pi/user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          authUsername,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Pi login failed");
+      }
+
+      const user = json?.user;
+
+      if (!user?.uid || !user?.username) {
+        throw new Error("Invalid Pi user data");
+      }
+
+      window.localStorage.setItem(
+        "pi_user",
+        JSON.stringify({
+          uid: user.uid,
+          username: user.username,
+        })
+      );
+
+      setPiUser({
+        uid: user.uid,
+        username: user.username,
+      });
+    } catch (error: any) {
+      console.error("Pi connect failed:", error);
+      alert(error?.message || "Failed to connect Pi");
+    } finally {
+      setConnectingPi(false);
+    }
+  };
+
   const handleLogout = () => {
     window.localStorage.removeItem("pi_user");
     setPiUser(null);
@@ -257,19 +335,25 @@ export default function ProfilePage() {
 
   const handleWithdrawRequest = async () => {
     if (!piUser?.uid || !piUser?.username) {
-      setWithdrawMessage(lang === "ar" ? "يجب ربط حساب Pi أولًا" : "Connect Pi first");
+      setWithdrawMessage(
+        lang === "ar" ? "يجب ربط حساب Pi أولًا" : "Connect Pi first"
+      );
       return;
     }
 
     if (!walletAddress.trim()) {
-      setWithdrawMessage(lang === "ar" ? "أدخل عنوان المحفظة" : "Enter wallet address");
+      setWithdrawMessage(
+        lang === "ar" ? "أدخل عنوان المحفظة" : "Enter wallet address"
+      );
       return;
     }
 
     const amount = Number(withdrawAmount);
 
     if (!Number.isFinite(amount) || amount <= 0) {
-      setWithdrawMessage(lang === "ar" ? "أدخل مبلغًا صحيحًا" : "Enter a valid amount");
+      setWithdrawMessage(
+        lang === "ar" ? "أدخل مبلغًا صحيحًا" : "Enter a valid amount"
+      );
       return;
     }
 
@@ -312,12 +396,16 @@ export default function ProfilePage() {
 
       if (historyRes.ok && historyJson?.ok) {
         setAvailableBalance(Number(historyJson.availableBalance || 0));
-        setWithdrawals(Array.isArray(historyJson.withdrawals) ? historyJson.withdrawals : []);
+        setWithdrawals(
+          Array.isArray(historyJson.withdrawals) ? historyJson.withdrawals : []
+        );
       }
     } catch (error: any) {
       setWithdrawMessage(
         error?.message ||
-          (lang === "ar" ? "فشل إرسال طلب السحب" : "Failed to submit request")
+          (lang === "ar"
+            ? "فشل إرسال طلب السحب"
+            : "Failed to submit request")
       );
     } finally {
       setWithdrawLoading(false);
@@ -334,6 +422,7 @@ export default function ProfilePage() {
       username: "اسم المستخدم",
       logout: "تسجيل الخروج",
       connectPi: "ربط حساب Pi",
+      connectingPi: "جاري الربط...",
 
       earningsTitle: "أرباحي",
       earningsLoading: "جاري تحميل الأرباح...",
@@ -388,6 +477,7 @@ export default function ProfilePage() {
       username: "Username",
       logout: "Log out",
       connectPi: "Connect Pi",
+      connectingPi: "Connecting...",
 
       earningsTitle: "My Earnings",
       earningsLoading: "Loading earnings...",
@@ -471,7 +561,8 @@ export default function ProfilePage() {
     width: 220,
     height: 220,
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%)",
+    background:
+      "radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%)",
     top: -90,
     right: -40,
     pointerEvents: "none",
@@ -482,7 +573,8 @@ export default function ProfilePage() {
     width: 160,
     height: 160,
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(255,255,255,0.18), transparent 70%)",
+    background:
+      "radial-gradient(circle, rgba(255,255,255,0.18), transparent 70%)",
     bottom: -60,
     left: -30,
     pointerEvents: "none",
@@ -705,14 +797,19 @@ export default function ProfilePage() {
                 <div>UID: {piUser.uid}</div>
               </div>
 
-              <button onClick={handleLogout} style={secondaryButtonStyle}>
+              <button onClick={handleLogout} style={secondaryButtonStyle} type="button">
                 {text.logout}
               </button>
             </>
           ) : (
-            <Link href="/profile" style={primaryButtonStyle}>
-              {text.connectPi}
-            </Link>
+            <button
+              onClick={handleConnectPi}
+              style={primaryButtonStyle}
+              type="button"
+              disabled={connectingPi}
+            >
+              {connectingPi ? text.connectingPi : text.connectPi}
+            </button>
           )}
         </section>
 
@@ -836,6 +933,7 @@ export default function ProfilePage() {
             <button
               onClick={handleWithdrawRequest}
               disabled={withdrawLoading}
+              type="button"
               style={{
                 ...primaryButtonStyle,
                 width: "100%",
@@ -885,11 +983,23 @@ export default function ProfilePage() {
                     border: "1px solid rgba(148,163,184,0.18)",
                   }}
                 >
-                  <div style={{ fontWeight: 900, color: "#0f172a", marginBottom: 6 }}>
+                  <div
+                    style={{
+                      fontWeight: 900,
+                      color: "#0f172a",
+                      marginBottom: 6,
+                    }}
+                  >
                     {item.amount} {item.currency}
                   </div>
 
-                  <div style={{ color: "#64748b", fontSize: 14, marginBottom: 6 }}>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: 14,
+                      marginBottom: 6,
+                    }}
+                  >
                     {text.statusLabel} {item.status}
                   </div>
 
