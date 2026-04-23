@@ -187,7 +187,7 @@ export default function ProfilePage() {
       }
     };
 
-    loadEarnings();
+    void loadEarnings();
   }, [piUser?.uid]);
 
   const handleLogout = () => {
@@ -211,37 +211,27 @@ export default function ProfilePage() {
       username: "اسم المستخدم",
       logout: "تسجيل الخروج",
       connectPi: "ربط حساب Pi",
-
       earningsTitle: "أرباحي",
       earningsLoading: "جاري تحميل الأرباح...",
       totalSales: "عدد المبيعات",
       totalGross: "الإجمالي",
       totalNet: "صافي الأرباح",
-
       myCourses: "دوراتي",
       myCoursesSub: "راجع الدورات التي أنشأتها أو التحقت بها",
-
       courses: "الدورات",
       coursesSub: "كل الدورات المرئية والملفات",
-
       writtenCourses: "الدورات المكتوبة",
       writtenCoursesSub: "كل الدورات النصية داخل الصفحة",
-
       browseCourses: "استكشاف الدورات",
       browseCoursesSub: "اكتشف محتوى جديد ومميز",
-
       createCourse: "أنشئ دورة",
       createCourseSub: "ابدأ ببناء دورتك التعليمية",
-
       createWrittenCourse: "دورة مكتوبة",
       createWrittenCourseSub: "أنشئ محتوى نصي منظم وجاهز للنشر",
-
       visitorDashboard: "لوحة الزوار",
       visitorDashboardSub: "عرض مختصر لتفاعل المستخدمين",
-
       addNews: "إضافة الأخبار",
       addNewsSub: "انشر جديد المنصة والمقالات",
-
       home: "الرئيسية",
       profile: "الملف",
     },
@@ -254,37 +244,27 @@ export default function ProfilePage() {
       username: "Username",
       logout: "Log out",
       connectPi: "Connect Pi",
-
       earningsTitle: "My Earnings",
       earningsLoading: "Loading earnings...",
       totalSales: "Sales",
       totalGross: "Gross",
       totalNet: "Net",
-
       myCourses: "My Courses",
       myCoursesSub: "Review your created and enrolled courses",
-
       courses: "Courses",
       coursesSub: "All media courses",
-
       writtenCourses: "Written Courses",
       writtenCoursesSub: "All article-based courses",
-
       browseCourses: "Browse Courses",
       browseCoursesSub: "Discover new and featured content",
-
       createCourse: "Create Course",
       createCourseSub: "Start building your learning experience",
-
       createWrittenCourse: "Written Course",
       createWrittenCourseSub: "Create structured text content",
-
       visitorDashboard: "Visitor Dashboard",
       visitorDashboardSub: "See audience activity and stats",
-
       addNews: "Add News",
       addNewsSub: "Publish updates and articles",
-
       home: "Home",
       profile: "Profile",
     },
@@ -581,4 +561,135 @@ export default function ProfilePage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 12,
+                position: "relative",
+                zIndex: 1,
+              }}
+            >
+              <div
+                style={{
+                  background: "rgba(99,102,241,0.08)",
+                  borderRadius: 22,
+                  padding: 16,
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: 14, color: "#64748b", marginBottom: 8 }}>
+                  {text.totalSales}
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 900, color: "#0b1736" }}>
+                  {earnings.totalSales}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: "rgba(16,185,129,0.08)",
+                  borderRadius: 22,
+                  padding: 16,
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: 14, color: "#64748b", marginBottom: 8 }}>
+                  {text.totalGross}
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 900, color: "#065f46" }}>
+                  {earnings.totalGross} {earnings.currency}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: "rgba(245,158,11,0.08)",
+                  borderRadius: 22,
+                  padding: 16,
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: 14, color: "#64748b", marginBottom: 8 }}>
+                  {text.totalNet}
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 900, color: "#92400e" }}>
+                  {earnings.totalNet} {earnings.currency}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <MenuCard
+          href="/my-courses"
+          title={text.myCourses}
+          subtitle={text.myCoursesSub}
+          icon="📚"
+        />
+
+        <MenuCard
+          href="/courses"
+          title={text.courses}
+          subtitle={text.coursesSub}
+          icon="🎓"
+        />
+
+        <MenuCard
+          href="/written-courses"
+          title={text.writtenCourses}
+          subtitle={text.writtenCoursesSub}
+          icon="📝"
+        />
+
+        <MenuCard
+          href="/"
+          title={text.browseCourses}
+          subtitle={text.browseCoursesSub}
+          icon="🔎"
+        />
+
+        <MenuCard
+          href="/create-course"
+          title={text.createCourse}
+          subtitle={text.createCourseSub}
+          icon="✨"
+        />
+
+        <MenuCard
+          href="/create-written-course"
+          title={text.createWrittenCourse}
+          subtitle={text.createWrittenCourseSub}
+          icon="✍️"
+        />
+
+        <MenuCard
+          href="/visitor-dashboard"
+          title={text.visitorDashboard}
+          subtitle={text.visitorDashboardSub}
+          icon="📊"
+        />
+
+        <MenuCard
+          href="/create-news"
+          title={text.addNews}
+          subtitle={text.addNewsSub}
+          icon="📰"
+        />
+      </div>
+
+      <nav style={bottomNavStyle}>
+        <div style={navWrapStyle}>
+          <Link href="/" style={navItemStyle(false)}>
+            {text.home}
+          </Link>
+
+          <Link href="/create-course" style={navItemStyle(false)}>
+            {text.createCourse}
+          </Link>
+
+          <Link href="/profile" style={navItemStyle(true)}>
+            {text.profile}
+          </Link>
+        </div>
+      </nav>
+    </main>
+  );
+}
