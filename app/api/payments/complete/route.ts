@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       completeJson?.payment?.currency ??
       "PI";
 
+    // حفظ الشراء مع منع التكرار لنفس المستخدم/الدورة
     const { error: purchaseError } = await supabase
       .from("purchases")
       .upsert(
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // جلب بيانات الدورة لمعرفة البائع
     const { data: course, error: courseError } = await supabase
       .from("courses")
       .select("id, owner_pi_uid, instructor_name")
@@ -115,9 +117,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // احسب صافي أرباح البائع
     const platformFee = 0;
     const sellerNet = amount - platformFee;
 
+    // حفظ الأرباح مع منع تكرار نفس الدفع
     const { error: saleError } = await supabase
       .from("course_sales")
       .upsert(
