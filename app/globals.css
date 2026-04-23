@@ -483,3 +483,15 @@ ol {
     font-size: 17px;
   }
 }
+
+:root {
+  --bg-primary: #f5f7ff;
+  --bg-card: rgba(255, 255, 255, 0.88);
+  --bg-secondary: #eef2ff;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --border-color: rgba(226, 232, 240, 0.8);
+  --shadow-sm: 0 10px 24px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 18px 40px rgba(15, 23, 42, 0.10);
+}
