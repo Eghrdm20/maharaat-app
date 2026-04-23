@@ -630,7 +630,7 @@ export default function HomePage() {
 
         <Link href="/news" style={navItemStyle(false)}>
           <div style={{ fontSize: 18, marginBottom: 3 }}>📰</div>
-          <span>{t.news || "أخبار"}</span>
+          <span>{lang === "ar" ? "أخبار" : "News"}</span>
         </Link>
 
         <Link href="/" style={navItemStyle(true)}>
