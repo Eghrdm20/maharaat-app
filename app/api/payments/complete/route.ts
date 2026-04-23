@@ -13,8 +13,12 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = process.env.PI_API_KEY;
+
     if (!apiKey) {
-      return NextResponse.json({ error: "Missing PI_API_KEY" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Missing PI_API_KEY" },
+        { status: 500 }
+      );
     }
 
     const controller = new AbortController();
@@ -39,7 +43,10 @@ export async function POST(req: NextRequest) {
     if (!completeRes.ok) {
       return NextResponse.json(
         {
-          error: completeJson?.error || completeJson?.message || "Complete failed",
+          error:
+            completeJson?.error ||
+            completeJson?.message ||
+            "Complete failed",
           details: completeJson,
         },
         { status: completeRes.status }
@@ -51,10 +58,13 @@ export async function POST(req: NextRequest) {
     const amount = Number(
       completeJson?.amount ?? completeJson?.payment?.amount ?? 0
     );
-    const currency =
-      completeJson?.currency ?? completeJson?.payment?.currency ?? "PI";
 
-    // 1) حفظ الشراء كما كان
+    const currency =
+      completeJson?.currency ??
+      completeJson?.payment?.currency ??
+      "PI";
+
+    // 1) حفظ الشراء
     const { error: purchaseError } = await supabase
       .from("purchases")
       .upsert(
@@ -99,13 +109,15 @@ export async function POST(req: NextRequest) {
 
     if (!sellerUid) {
       return NextResponse.json(
-        { error: "Course owner_pi_uid is missing, cannot record seller earnings" },
+        {
+          error:
+            "Course owner_pi_uid is missing, cannot record seller earnings",
+        },
         { status: 500 }
       );
     }
 
-    // 3) احسب صافي أرباح البائع
-    // غيّر العمولة إذا أردت، حاليًا 0%
+    // 3) حساب صافي أرباح البائع
     const platformFee = 0;
     const sellerNet = amount - platformFee;
 
@@ -148,7 +160,9 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown server error";
+    const message =
+      error instanceof Error ? error.message : "Unknown server error";
+
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
