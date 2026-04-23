@@ -305,6 +305,10 @@ export default function ProfilePage() {
         })
       );
 
+      if (json?.sessionToken) {
+        window.localStorage.setItem("pi_session_token", json.sessionToken);
+      }
+
       setPiUser({
         uid: user.uid,
         username: user.username,
@@ -319,6 +323,7 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     window.localStorage.removeItem("pi_user");
+    window.localStorage.removeItem("pi_session_token");
     setPiUser(null);
     setEarnings({
       totalSales: 0,
@@ -423,48 +428,38 @@ export default function ProfilePage() {
       logout: "تسجيل الخروج",
       connectPi: "ربط حساب Pi",
       connectingPi: "جاري الربط...",
-
       earningsTitle: "أرباحي",
       earningsLoading: "جاري تحميل الأرباح...",
       totalSales: "عدد المبيعات",
       totalGross: "الإجمالي",
       totalNet: "صافي الأرباح",
-
       withdrawTitle: "سحب الأرباح",
       availableToWithdraw: "الرصيد القابل للسحب:",
       walletPlaceholder: "عنوان محفظة Pi",
       amountPlaceholder: "مبلغ السحب",
       requestWithdraw: "طلب سحب",
       requestingWithdraw: "جاري إرسال الطلب...",
-
       withdrawalHistory: "سجل السحوبات",
       noWithdrawals: "لا توجد طلبات سحب بعد",
       statusLabel: "الحالة:",
-
       myCourses: "دوراتي",
       myCoursesSub: "راجع الدورات التي أنشأتها أو التحقت بها",
-
+      paidCourses: "الدورات المدفوعة",
+      paidCoursesSub: "كل الدورات التي اشتريتها ستظهر هنا",
       courses: "الدورات",
       coursesSub: "كل الدورات المرئية والملفات",
-
       writtenCourses: "الدورات المكتوبة",
       writtenCoursesSub: "كل الدورات النصية داخل الصفحة",
-
       browseCourses: "استكشاف الدورات",
       browseCoursesSub: "اكتشف محتوى جديد ومميز",
-
       createCourse: "أنشئ دورة",
       createCourseSub: "ابدأ ببناء دورتك التعليمية",
-
       createWrittenCourse: "دورة مكتوبة",
       createWrittenCourseSub: "أنشئ محتوى نصي منظم وجاهز للنشر",
-
       visitorDashboard: "لوحة الزوار",
       visitorDashboardSub: "عرض مختصر لتفاعل المستخدمين",
-
       addNews: "إضافة الأخبار",
       addNewsSub: "انشر جديد المنصة والمقالات",
-
       home: "الرئيسية",
       profile: "الملف",
     },
@@ -478,48 +473,38 @@ export default function ProfilePage() {
       logout: "Log out",
       connectPi: "Connect Pi",
       connectingPi: "Connecting...",
-
       earningsTitle: "My Earnings",
       earningsLoading: "Loading earnings...",
       totalSales: "Sales",
       totalGross: "Gross",
       totalNet: "Net",
-
       withdrawTitle: "Withdraw Earnings",
       availableToWithdraw: "Available to withdraw:",
       walletPlaceholder: "Pi wallet address",
       amountPlaceholder: "Withdrawal amount",
       requestWithdraw: "Request Withdrawal",
       requestingWithdraw: "Submitting...",
-
       withdrawalHistory: "Withdrawal History",
       noWithdrawals: "No withdrawal requests yet",
       statusLabel: "Status:",
-
       myCourses: "My Courses",
       myCoursesSub: "Review your created and enrolled courses",
-
+      paidCourses: "Paid Courses",
+      paidCoursesSub: "All purchased courses appear here",
       courses: "Courses",
       coursesSub: "All media courses",
-
       writtenCourses: "Written Courses",
       writtenCoursesSub: "All article-based courses",
-
       browseCourses: "Browse Courses",
       browseCoursesSub: "Discover new and featured content",
-
       createCourse: "Create Course",
       createCourseSub: "Start building your learning experience",
-
       createWrittenCourse: "Written Course",
       createWrittenCourseSub: "Create structured text content",
-
       visitorDashboard: "Visitor Dashboard",
       visitorDashboardSub: "See audience activity and stats",
-
       addNews: "Add News",
       addNewsSub: "Publish updates and articles",
-
       home: "Home",
       profile: "Profile",
     },
@@ -561,8 +546,7 @@ export default function ProfilePage() {
     width: 220,
     height: 220,
     borderRadius: "50%",
-    background:
-      "radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%)",
+    background: "radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%)",
     top: -90,
     right: -40,
     pointerEvents: "none",
@@ -573,8 +557,7 @@ export default function ProfilePage() {
     width: 160,
     height: 160,
     borderRadius: "50%",
-    background:
-      "radial-gradient(circle, rgba(255,255,255,0.18), transparent 70%)",
+    background: "radial-gradient(circle, rgba(255,255,255,0.18), transparent 70%)",
     bottom: -60,
     left: -30,
     pointerEvents: "none",
@@ -1019,6 +1002,13 @@ export default function ProfilePage() {
         </section>
 
         <MenuCard
+          href="/paid-courses"
+          title={text.paidCourses}
+          subtitle={text.paidCoursesSub}
+          icon="💳"
+        />
+
+        <MenuCard
           href="/my-courses"
           title={text.myCourses}
           subtitle={text.myCoursesSub}
@@ -1037,13 +1027,6 @@ export default function ProfilePage() {
           title={text.writtenCourses}
           subtitle={text.writtenCoursesSub}
           icon="📝"
-        />
-
-        <MenuCard
-          href="/"
-          title={text.browseCourses}
-          subtitle={text.browseCoursesSub}
-          icon="🔎"
         />
 
         <MenuCard
