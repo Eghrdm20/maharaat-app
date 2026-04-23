@@ -5,43 +5,63 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createSupabaseAdminClient();
     const { searchParams } = new URL(req.url);
+    const uid = searchParams.get("uid");
 
-    const category = searchParams.get("category");
-    const limit = Math.max(1, Math.min(50, Number(searchParams.get("limit") || "10")));
-    const offset = Math.max(0, Number(searchParams.get("offset") || "0"));
+    const supabase = createSupabaseAdminClient();
 
-    let query = supabase
-      .from("posts")
+    const { data: newsRows, error: newsError } = await supabase
+      .from("news")
       .select("*")
-      .eq("is_published", true)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false });
 
-    if (category && category !== "all") {
-      query = query.eq("category", category);
+    if (newsError) {
+      throw newsError;
     }
 
-    const { data: posts, error } = await query;
-    if (error) throw error;
+    const news = newsRows || [];
+    const newsIds = news.map((item) => item.id);
 
-    let countQuery = supabase
-      .from("posts")
-      .select("*", { count: "exact", head: true })
-      .eq("is_published", true);
-
-    if (category && category !== "all") {
-      countQuery = countQuery.eq("category", category);
+    if (newsIds.length === 0) {
+      return NextResponse.json({
+        ok: true,
+        news: [],
+      });
     }
 
-    const { count, error: countError } = await countQuery;
-    if (countError) throw countError;
+    const { data: likesRows, error: likesError } = await supabase
+      .from("news_likes")
+      .select("news_id, uid")
+      .in("news_id", newsIds);
+
+    if (likesError) {
+      throw likesError;
+    }
+
+    const likes = likesRows || [];
+
+    const likesCountMap = new Map<number, number>();
+    const likedByMeSet = new Set<number>();
+
+    for (const like of likes) {
+      const current = likesCountMap.get(like.news_id) || 0;
+      likesCountMap.set(like.news_id, current + 1);
+
+      if (uid && like.uid === uid) {
+        likedByMeSet.add(like.news_id);
+      }
+    }
+
+    const enrichedNews = news.map((item) => ({
+      ...item,
+      likes_count: likesCountMap.get(item.id) || 0,
+      liked_by_me: likedByMeSet.has(item.id),
+    }));
 
     return NextResponse.json({
       ok: true,
-      posts: posts || [],
-      total: count || 0,
+      news: enrichedNews,
     });
   } catch (error: any) {
     console.error("GET /api/news failed:", error);
@@ -49,8 +69,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
-        posts: [],
-        total: 0,
         error: error?.message || "Failed to load news",
       },
       { status: 500 }
@@ -62,41 +80,47 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const uid = body?.uid?.toString?.().trim?.() || "";
-    const username = body?.username?.toString?.().trim?.() || "";
-    const title = body?.title?.toString?.().trim?.() || "";
-    const content = body?.content?.toString?.().trim?.() || "";
-    const excerpt = body?.excerpt?.toString?.().trim?.() || "";
-    const category = body?.category?.toString?.().trim?.() || "general";
-    const image_url_raw = body?.image_url?.toString?.().trim?.() || "";
+    const uid = String(body?.uid || "").trim();
+    const username = String(body?.username || "").trim();
+    const title = String(body?.title || "").trim();
+    const content = String(body?.content || "").trim();
+    const excerpt = String(body?.excerpt || "").trim();
+    const category = String(body?.category || "general").trim();
+    const image_url = body?.image_url ? String(body.image_url).trim() : null;
 
-    const image_url = image_url_raw
-      ? image_url_raw.replace(/^\/+https?:\/\//i, (match) => match.replace(/^\/+/, ""))
-      : null;
-
-    if (!title || !content) {
+    if (!uid || !username) {
       return NextResponse.json(
-        { ok: false, error: "Title and content are required" },
+        { ok: false, error: "User is required" },
         { status: 400 }
       );
     }
 
+    if (!title || !content) {
+      return NextResponse.json(
+        { ok: false, error: "title and content are required" },
+        { status: 400 }
+      );
+    }
+
+    const finalExcerpt =
+      excerpt || content.slice(0, 180) + (content.length > 180 ? "..." : "");
+
     const supabase = createSupabaseAdminClient();
 
-    const payload = {
-      uid: uid || null,
-      username: username || "anonymous",
-      title,
-      content,
-      excerpt: excerpt || `${content.slice(0, 150)}...`,
-      category,
-      image_url,
-      is_published: true,
-    };
-
-    const { data: post, error } = await supabase
-      .from("posts")
-      .insert(payload)
+    const { data, error } = await supabase
+      .from("news")
+      .insert([
+        {
+          uid,
+          username,
+          title,
+          content,
+          excerpt: finalExcerpt,
+          category,
+          image_url,
+          is_deleted: false,
+        },
+      ])
       .select()
       .single();
 
@@ -104,7 +128,14 @@ export async function POST(req: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json({ ok: true, post });
+    return NextResponse.json({
+      ok: true,
+      news: {
+        ...data,
+        likes_count: 0,
+        liked_by_me: false,
+      },
+    });
   } catch (error: any) {
     console.error("POST /api/news failed:", error);
 
@@ -112,7 +143,6 @@ export async function POST(req: NextRequest) {
       {
         ok: false,
         error: error?.message || "Failed to publish news",
-        details: error,
       },
       { status: 500 }
     );
