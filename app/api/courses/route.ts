@@ -10,21 +10,29 @@ export async function GET(req: NextRequest) {
 
     const supabase = createSupabaseAdminClient();
 
-    let query = supabase
+    if (uid) {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("owner_pi_uid", uid)
+        .eq("is_deleted", false)
+        .order("id", { ascending: false });
+
+      if (error) throw error;
+
+      return NextResponse.json({
+        ok: true,
+        courses: data || [],
+      });
+    }
+
+    const { data, error } = await supabase
       .from("courses")
       .select("*")
       .eq("is_deleted", false)
       .order("id", { ascending: false });
 
-    if (uid) {
-      query = query.eq("owner_pi_uid", uid);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     return NextResponse.json({
       ok: true,
@@ -88,7 +96,10 @@ export async function POST(req: NextRequest) {
 
     if (!is_free && (!Number.isFinite(price) || price <= 0)) {
       return NextResponse.json(
-        { ok: false, error: "Valid price is required for paid courses" },
+        {
+          ok: false,
+          error: "Valid price is required for paid courses",
+        },
         { status: 400 }
       );
     }
