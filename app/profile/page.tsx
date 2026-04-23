@@ -1,11 +1,9 @@
 "use client";
 
-import type { CSSProperties, FormEvent } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { createSupabaseClient } from "@/lib/supabase/client";
-import { translations, type Lang, getDirection } from "@/lib/i18n";
+import { getDirection, type Lang } from "@/lib/i18n";
 
 type CachedPiUser = {
   uid: string;
@@ -13,23 +11,9 @@ type CachedPiUser = {
 };
 
 export default function ProfilePage() {
-  const router = useRouter();
-
   const [lang, setLang] = useState<Lang>("ar");
   const [piUser, setPiUser] = useState<CachedPiUser | null>(null);
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState("");
-  const [price, setPrice] = useState("");
-  const [isFree, setIsFree] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [courseFile, setCourseFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("");
-
-  const t = translations[lang];
   const dir = useMemo(() => getDirection(lang), [lang]);
 
   useEffect(() => {
@@ -51,112 +35,221 @@ export default function ProfilePage() {
     }
   }, []);
 
-  const changeLanguage = (nextLang: Lang) => {
-    setLang(nextLang);
-    window.localStorage.setItem("app_lang", nextLang);
-    document.documentElement.lang = nextLang;
-    document.documentElement.dir = getDirection(nextLang);
+  const handleLogout = () => {
+    window.localStorage.removeItem("pi_user");
+    setPiUser(null);
   };
 
-  const uploadToBucket = async (bucket: string, file: File) => {
-    const supabase = createSupabaseClient();
-    const ext = file.name.split(".").pop() || "bin";
-    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const path = `${piUser?.uid || "guest"}/${safeName}`;
+  const text = {
+    ar: {
+      title: "الملف الشخصي",
+      piTitle: "ربط حساب Pi",
+      connected: "الحالة: تم استرجاع الحساب المحفوظ",
+      notConnected: "الحالة: لم يتم ربط حساب Pi بعد",
+      username: "اسم مستخدم Pi",
+      logout: "تسجيل الخروج",
+      myCourses: "دوراتي",
+      browseCourses: "استكشاف الدورات",
+      createCourse: "أنشئ دورة",
+      createWrittenCourse: "إنشاء دورة مكتوبة",
+      visitorDashboard: "لوحة الزوار",
+      addNews: "إضافة الأخبار",
+      home: "الرئيسية",
+      profile: "الملف الشخصي",
+    },
+    en: {
+      title: "Profile",
+      piTitle: "Pi Account",
+      connected: "Status: Restored saved account",
+      notConnected: "Status: Pi account not connected yet",
+      username: "Pi Username",
+      logout: "Log out",
+      myCourses: "My Courses",
+      browseCourses: "Browse Courses",
+      createCourse: "Create Course",
+      createWrittenCourse: "Create Written Course",
+      visitorDashboard: "Visitor Dashboard",
+      addNews: "Add News",
+      home: "Home",
+      profile: "Profile",
+    },
+  }[lang];
 
-    const { error } = await supabase.storage.from(bucket).upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: file.type || undefined,
-    });
-
-    if (error) throw new Error(error.message);
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-
-    if (!piUser) {
-      setStatus(t.mustConnectPiFirst);
-      return;
-    }
-
-    if (!title.trim() || !description.trim() || !duration.trim()) {
-      setStatus(t.fillRequiredFields);
-      return;
-    }
-
-    if (!isFree) {
-      const numericPrice = Number(price);
-      if (!numericPrice || numericPrice <= 0) {
-        setStatus(t.invalidPrice);
-        return;
-      }
-    }
-
-    try {
-      setLoading(true);
-      setStatus(t.publishingCourse);
-
-      let imageUrl: string | null = null;
-      let videoUrl: string | null = null;
-      let fileUrl: string | null = null;
-
-      if (imageFile) {
-        imageUrl = await uploadToBucket("course-images", imageFile);
-      }
-
-      if (videoFile) {
-        videoUrl = await uploadToBucket("course-videos", videoFile);
-      }
-
-      if (courseFile) {
-        fileUrl = await uploadToBucket("course-files", courseFile);
-      }
-
-      const res = await fetch("/api/courses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: piUser.uid,
-          username: piUser.username,
-          title,
-          description,
-          duration,
-          price,
-          isFree,
-          imageUrl,
-          videoUrl,
-          fileUrl,
-        }),
-      });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(json?.error || t.courseCreatedFailed);
-      }
-
-      setStatus(t.courseCreatedSuccess);
-
-      setTimeout(() => {
-        router.push("/");
-      }, 1200);
-    } catch (error: any) {
-      console.error(error);
-      setStatus(error?.message || t.courseCreatedFailed);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* ====== STYLES ====== */
-  
   const pageStyle: CSSProperties = {
     minHeight: "100vh",
-    paddingBottom: 100,
+    paddingBottom: 110,
     background: "var(--bg-primary)",
-    fontFamily
+    fontFamily: "var(--font-tajawal), sans-serif",
+  };
+
+  const containerStyle: CSSProperties = {
+    maxWidth: 720,
+    margin: "0 auto",
+    padding: "20px 16px",
+  };
+
+  const titleStyle: CSSProperties = {
+    fontSize: 34,
+    fontWeight: 900,
+    color: "var(--text-primary)",
+    marginBottom: 20,
+    textAlign: "right",
+  };
+
+  const sectionStyle: CSSProperties = {
+    background: "var(--bg-card)",
+    borderRadius: 28,
+    padding: 20,
+    boxShadow: "var(--shadow-md)",
+    marginBottom: 18,
+    border: "1px solid var(--border-color)",
+  };
+
+  const cardTitleStyle: CSSProperties = {
+    fontSize: 26,
+    fontWeight: 900,
+    color: "#0f172a",
+    marginBottom: 18,
+  };
+
+  const statusBoxStyle: CSSProperties = {
+    background: "rgba(16, 185, 129, 0.12)",
+    border: "1px solid rgba(16, 185, 129, 0.22)",
+    color: "#065f46",
+    borderRadius: 22,
+    padding: "18px 16px",
+    marginBottom: 18,
+    lineHeight: 1.9,
+    fontSize: 16,
+  };
+
+  const ghostButtonStyle: CSSProperties = {
+    width: "fit-content",
+    minWidth: 170,
+    padding: "18px 22px",
+    borderRadius: 22,
+    border: "1px solid #cbd5e1",
+    background: "#fff",
+    color: "#0f172a",
+    fontSize: 18,
+    fontWeight: 900,
+    cursor: "pointer",
+  };
+
+  const menuLinkStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 92,
+    padding: "0 24px",
+    borderRadius: 28,
+    background: "var(--bg-card)",
+    color: "var(--text-primary)",
+    textDecoration: "none",
+    fontSize: 22,
+    fontWeight: 900,
+    boxShadow: "var(--shadow-sm)",
+    marginBottom: 18,
+    border: "1px solid var(--border-color)",
+  };
+
+  const bottomNavStyle: CSSProperties = {
+    position: "fixed",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    background: "rgba(255,255,255,0.96)",
+    borderTop: "1px solid #e5e7eb",
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    padding: "12px 14px max(12px, env(safe-area-inset-bottom))",
+    gap: 10,
+    zIndex: 50,
+  };
+
+  const navItemStyle = (active: boolean): CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 64,
+    borderRadius: 22,
+    textDecoration: "none",
+    fontWeight: 900,
+    fontSize: 18,
+    background: active ? "#08122f" : "transparent",
+    color: active ? "#fff" : "#111827",
+  });
+
+  return (
+    <main style={pageStyle} dir={dir}>
+      <div style={containerStyle}>
+        <h1 style={titleStyle}>{text.title}</h1>
+
+        <section style={sectionStyle}>
+          <div style={cardTitleStyle}>{text.piTitle}</div>
+
+          <div style={{ color: "var(--text-secondary)", fontSize: 18, marginBottom: 14 }}>
+            {piUser ? text.connected : text.notConnected}
+          </div>
+
+          {piUser ? (
+            <>
+              <div style={statusBoxStyle}>
+                <div>
+                  {text.username}: {piUser.username}
+                </div>
+                <div>UID: {piUser.uid}</div>
+              </div>
+
+              <button onClick={handleLogout} style={ghostButtonStyle}>
+                {text.logout}
+              </button>
+            </>
+          ) : (
+            <Link href="/profile" style={{ ...ghostButtonStyle, display: "inline-flex", textDecoration: "none", alignItems: "center", justifyContent: "center" }}>
+              ربط حساب Pi
+            </Link>
+          )}
+        </section>
+
+        <Link href="/my-courses" style={menuLinkStyle}>
+          <span>{text.myCourses}</span>
+        </Link>
+
+        <Link href="/" style={menuLinkStyle}>
+          <span>{text.browseCourses}</span>
+        </Link>
+
+        <Link href="/create-course" style={menuLinkStyle}>
+          <span>{text.createCourse}</span>
+        </Link>
+
+        <Link href="/create-written-course" style={menuLinkStyle}>
+          <span>{text.createWrittenCourse}</span>
+        </Link>
+
+        <Link href="/visitor-dashboard" style={menuLinkStyle}>
+          <span>{text.visitorDashboard}</span>
+        </Link>
+
+        <Link href="/create-news" style={menuLinkStyle}>
+          <span>{text.addNews}</span>
+        </Link>
+      </div>
+
+      <nav style={bottomNavStyle}>
+        <Link href="/" style={navItemStyle(false)}>
+          {text.home}
+        </Link>
+
+        <Link href="/create-course" style={navItemStyle(false)}>
+          {text.createCourse}
+        </Link>
+
+        <Link href="/profile" style={navItemStyle(true)}>
+          {text.profile}
+        </Link>
+      </nav>
+    </main>
+  );
+}
