@@ -383,6 +383,15 @@ export default function CourseDetailsPage() {
     try {
       if (!course) return;
 
+      if (hasAccess) {
+        setStatus(
+          lang === "ar"
+            ? "أنت تملك هذه الدورة بالفعل"
+            : "You already own this course"
+        );
+        return;
+      }
+
       if (course.is_free) {
         if (!piUser) {
           setStatus(
@@ -393,6 +402,7 @@ export default function CourseDetailsPage() {
           return;
         }
 
+        window.localStorage.setItem(`owned_course_${course.id}`, "true");
         setHasAccess(true);
         setStatus(
           lang === "ar"
@@ -416,7 +426,6 @@ export default function CourseDetailsPage() {
       );
 
       const currentUser = await ensurePiAuthForPayments();
-
       const amount = Number(course.price || 0);
 
       if (!amount || amount <= 0) {
@@ -479,8 +488,20 @@ export default function CourseDetailsPage() {
                 throw new Error(json?.error || t.paymentFailed);
               }
 
-              await refreshAccessFromSupabase(currentUser.uid);
-              setStatus(t.paymentSuccess);
+              window.localStorage.setItem(`owned_course_${course.id}`, "true");
+              setHasAccess(true);
+
+              try {
+                await refreshAccessFromSupabase(currentUser.uid);
+              } catch (error) {
+                console.error("refreshAccessFromSupabase failed:", error);
+              }
+
+              setStatus(
+                lang === "ar"
+                  ? "تم شراء الدورة بنجاح. يمكنك الآن فتح المحتوى."
+                  : "Course purchased successfully. You can now access the content."
+              );
             } catch (error: any) {
               console.error("complete error:", error);
               setStatus(error?.message || t.paymentFailed);
@@ -678,6 +699,18 @@ export default function CourseDetailsPage() {
     whiteSpace: "pre-wrap",
   };
 
+  const ownedBoxStyle: CSSProperties = {
+    marginTop: 14,
+    padding: "16px 18px",
+    borderRadius: 18,
+    background: "rgba(34,197,94,0.10)",
+    border: "1px solid rgba(34,197,94,0.22)",
+    color: "#166534",
+    fontWeight: 800,
+    fontSize: 17,
+    lineHeight: 1.8,
+  };
+
   const sectionTitleStyle: CSSProperties = {
     fontSize: 26,
     fontWeight: 900,
@@ -845,7 +878,9 @@ export default function CourseDetailsPage() {
                   {course.is_free
                     ? t.startNow
                     : buying
-                    ? (lang === "ar" ? "جاري الشراء..." : "Buying...")
+                    ? lang === "ar"
+                      ? "جاري الشراء..."
+                      : "Buying..."
                     : `${t.buyNow} - ${priceText}`}
                 </button>
 
@@ -870,6 +905,12 @@ export default function CourseDetailsPage() {
               </>
             ) : (
               <>
+                <div style={ownedBoxStyle}>
+                  {lang === "ar"
+                    ? "أنت تملك هذه الدورة بالفعل. مرّر للأسفل لعرض المحتوى."
+                    : "You already own this course. Scroll down to access the content."}
+                </div>
+
                 <div style={sectionTitleStyle}>{t.courseContentAccess}</div>
 
                 {loadingProtectedContent ? (
