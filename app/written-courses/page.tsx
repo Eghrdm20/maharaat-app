@@ -12,10 +12,8 @@ type Course = {
   description: string | null;
   instructor_name: string;
   image_url: string | null;
-  duration: string | null;
-  students_count: number | null;
-  rating: number | null;
-  article_blocks?: unknown[] | null;
+  content_type?: string | null;
+  is_deleted?: boolean | null;
 };
 
 export default function WrittenCoursesPage() {
@@ -41,6 +39,7 @@ export default function WrittenCoursesPage() {
         setError("");
 
         const supabase = createSupabaseClient();
+
         const { data, error } = await supabase
           .from("courses")
           .select("*")
@@ -49,17 +48,22 @@ export default function WrittenCoursesPage() {
           .order("id", { ascending: false });
 
         if (error) throw new Error(error.message);
+
         setCourses((data || []) as Course[]);
       } catch (err: any) {
         console.error(err);
-        setError("فشل تحميل الدورات المكتوبة");
+        setError(
+          lang === "ar"
+            ? "فشل تحميل الدورات المكتوبة"
+            : "Failed to load written courses"
+        );
       } finally {
         setLoading(false);
       }
     };
 
     loadCourses();
-  }, []);
+  }, [lang]);
 
   const pageStyle: CSSProperties = {
     minHeight: "100vh",
@@ -86,27 +90,45 @@ export default function WrittenCoursesPage() {
     marginBottom: 18,
   };
 
+  const infoStyle: CSSProperties = {
+    background: "var(--bg-card)",
+    border: "1px solid var(--border-color)",
+    borderRadius: 20,
+    padding: 22,
+    textAlign: "center",
+    color: "var(--text-secondary)",
+  };
+
   return (
     <main style={pageStyle} dir={dir}>
       <div style={containerStyle}>
         <div style={{ marginBottom: 20 }}>
-          <Link href="/profile" style={{ textDecoration: "none", color: "var(--text-secondary)" }}>
+          <Link
+            href="/profile"
+            style={{ textDecoration: "none", color: "var(--text-secondary)" }}
+          >
             ← {lang === "ar" ? "العودة" : "Back"}
           </Link>
+
           <h1 style={{ fontSize: 34, fontWeight: 900, margin: "12px 0 8px" }}>
             {lang === "ar" ? "الدورات المكتوبة" : "Written Courses"}
           </h1>
+
           <p style={{ color: "var(--text-secondary)" }}>
-            {lang === "ar" ? "دورات تقرأ داخل الصفحة" : "Article-based courses"}
+            {lang === "ar"
+              ? "كل الدورات النصية داخل الصفحة"
+              : "All article-based courses"}
           </p>
         </div>
 
         {loading ? (
-          <div>جاري التحميل...</div>
+          <div style={infoStyle}>{lang === "ar" ? "جاري التحميل..." : "Loading..."}</div>
         ) : error ? (
-          <div>{error}</div>
+          <div style={infoStyle}>{error}</div>
         ) : courses.length === 0 ? (
-          <div>لا توجد دورات مكتوبة بعد</div>
+          <div style={infoStyle}>
+            {lang === "ar" ? "لا توجد دورات مكتوبة بعد" : "No written courses yet"}
+          </div>
         ) : (
           courses.map((course) => (
             <Link key={course.id} href={`/courses/${course.id}`} style={cardStyle}>
@@ -131,7 +153,7 @@ export default function WrittenCoursesPage() {
                     fontSize: 13,
                   }}
                 >
-                  دورة مكتوبة
+                  {lang === "ar" ? "دورة مكتوبة" : "Written Course"}
                 </div>
 
                 <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 10 }}>
@@ -139,11 +161,11 @@ export default function WrittenCoursesPage() {
                 </h2>
 
                 <div style={{ color: "var(--text-secondary)", marginBottom: 10 }}>
-                  بواسطة {course.instructor_name}
+                  {lang === "ar" ? "بواسطة" : "By"} {course.instructor_name}
                 </div>
 
                 <p style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
-                  {course.description || "لا يوجد وصف"}
+                  {course.description || (lang === "ar" ? "لا يوجد وصف" : "No description")}
                 </p>
               </div>
             </Link>
