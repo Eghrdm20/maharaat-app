@@ -1,88 +1,79 @@
-import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { isAdminUid } from "@/lib/admin";
+
+export const runtime = "nodejs";
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const courseId = Number(params.id)
-    const { uid } = await req.json()
+    const courseId = Number(params.id);
+    const body = await req.json().catch(() => ({}));
+    const requesterUid = String(body?.uid || "").trim();
 
     if (!courseId || Number.isNaN(courseId)) {
       return NextResponse.json(
-        { error: "Invalid course id" },
+        { ok: false, error: "Invalid course id" },
         { status: 400 }
-      )
+      );
     }
 
-    if (!uid) {
+    if (!requesterUid) {
       return NextResponse.json(
-        { error: "uid is required" },
+        { ok: false, error: "uid is required" },
         { status: 400 }
-      )
+      );
     }
 
-    const supabase = createSupabaseServerClient()
+    const supabase = createSupabaseAdminClient();
 
     const { data: course, error: courseError } = await supabase
       .from("courses")
       .select("id, owner_pi_uid, is_deleted")
       .eq("id", courseId)
-      .single()
+      .single();
 
     if (courseError || !course) {
       return NextResponse.json(
-        { error: "Course not found" },
+        { ok: false, error: "Course not found" },
         { status: 404 }
-      )
+      );
     }
 
-    if (course.owner_pi_uid !== uid) {
+    const canDelete =
+      requesterUid === course.owner_pi_uid || isAdminUid(requesterUid);
+
+    if (!canDelete) {
       return NextResponse.json(
-        { error: "You are not allowed to delete this course" },
+        { ok: false, error: "You are not allowed to delete this course" },
         { status: 403 }
-      )
+      );
     }
 
-    if (course.is_deleted) {
-      return NextResponse.json(
-        {
-          ok: true,
-          message: "Course already deleted",
-        },
-        { status: 200 }
-      )
-    }
-
-    const { error: updateError } = await supabase
+    const { error: deleteError } = await supabase
       .from("courses")
-      .update({
-        is_deleted: true,
-        deleted_at: new Date().toISOString(),
-      })
-      .eq("id", courseId)
+      .update({ is_deleted: true })
+      .eq("id", courseId);
 
-    if (updateError) {
-      return NextResponse.json(
-        { error: updateError.message },
-        { status: 500 }
-      )
+    if (deleteError) {
+      throw deleteError;
     }
 
-    return NextResponse.json(
-      {
-        ok: true,
-        message: "Course deleted successfully",
-      },
-      { status: 200 }
-    )
+    return NextResponse.json({
+      ok: true,
+      message: "Course deleted successfully",
+    });
   } catch (error: any) {
+    console.error("DELETE /api/courses/[id] failed:", error);
+
     return NextResponse.json(
       {
-        error: error?.message || "Server error",
+        ok: false,
+        error: error?.message || "Failed to delete course",
       },
       { status: 500 }
-    )
+    );
   }
 }
