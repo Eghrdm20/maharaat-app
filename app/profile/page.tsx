@@ -10,6 +10,13 @@ type CachedPiUser = {
   username: string;
 };
 
+type EarningsState = {
+  totalSales: number;
+  totalGross: number;
+  totalNet: number;
+  currency: string;
+};
+
 function FloatingShape({ style }: { style?: CSSProperties }) {
   return (
     <div
@@ -105,6 +112,13 @@ function MenuCard({
 export default function ProfilePage() {
   const [lang, setLang] = useState<Lang>("ar");
   const [piUser, setPiUser] = useState<CachedPiUser | null>(null);
+  const [earnings, setEarnings] = useState<EarningsState>({
+    totalSales: 0,
+    totalGross: 0,
+    totalNet: 0,
+    currency: "PI",
+  });
+  const [earningsLoading, setEarningsLoading] = useState(true);
 
   const dir = useMemo(() => getDirection(lang), [lang]);
 
@@ -127,9 +141,64 @@ export default function ProfilePage() {
     }
   }, []);
 
+  useEffect(() => {
+    const loadEarnings = async () => {
+      if (!piUser?.uid) {
+        setEarningsLoading(false);
+        setEarnings({
+          totalSales: 0,
+          totalGross: 0,
+          totalNet: 0,
+          currency: "PI",
+        });
+        return;
+      }
+
+      try {
+        setEarningsLoading(true);
+
+        const res = await fetch(
+          `/api/earnings?uid=${encodeURIComponent(piUser.uid)}`,
+          { cache: "no-store" }
+        );
+
+        const json = await res.json();
+
+        if (!res.ok || !json?.ok) {
+          throw new Error(json?.error || "Failed to load earnings");
+        }
+
+        setEarnings({
+          totalSales: json.totalSales || 0,
+          totalGross: json.totalGross || 0,
+          totalNet: json.totalNet || 0,
+          currency: json.currency || "PI",
+        });
+      } catch (error) {
+        console.error("Failed to load earnings:", error);
+        setEarnings({
+          totalSales: 0,
+          totalGross: 0,
+          totalNet: 0,
+          currency: "PI",
+        });
+      } finally {
+        setEarningsLoading(false);
+      }
+    };
+
+    loadEarnings();
+  }, [piUser?.uid]);
+
   const handleLogout = () => {
     window.localStorage.removeItem("pi_user");
     setPiUser(null);
+    setEarnings({
+      totalSales: 0,
+      totalGross: 0,
+      totalNet: 0,
+      currency: "PI",
+    });
   };
 
   const text = {
@@ -142,6 +211,12 @@ export default function ProfilePage() {
       username: "اسم المستخدم",
       logout: "تسجيل الخروج",
       connectPi: "ربط حساب Pi",
+
+      earningsTitle: "أرباحي",
+      earningsLoading: "جاري تحميل الأرباح...",
+      totalSales: "عدد المبيعات",
+      totalGross: "الإجمالي",
+      totalNet: "صافي الأرباح",
 
       myCourses: "دوراتي",
       myCoursesSub: "راجع الدورات التي أنشأتها أو التحقت بها",
@@ -179,6 +254,12 @@ export default function ProfilePage() {
       username: "Username",
       logout: "Log out",
       connectPi: "Connect Pi",
+
+      earningsTitle: "My Earnings",
+      earningsLoading: "Loading earnings...",
+      totalSales: "Sales",
+      totalGross: "Gross",
+      totalNet: "Net",
 
       myCourses: "My Courses",
       myCoursesSub: "Review your created and enrolled courses",
@@ -490,78 +571,14 @@ export default function ProfilePage() {
           )}
         </section>
 
-        <MenuCard
-          href="/my-courses"
-          title={text.myCourses}
-          subtitle={text.myCoursesSub}
-          icon="📚"
-        />
+        <section style={sectionStyle}>
+          <div style={sectionGlow} />
+          <div style={cardTitleStyle}>{text.earningsTitle}</div>
 
-        <MenuCard
-          href="/courses"
-          title={text.courses}
-          subtitle={text.coursesSub}
-          icon="🎓"
-        />
-
-        <MenuCard
-          href="/written-courses"
-          title={text.writtenCourses}
-          subtitle={text.writtenCoursesSub}
-          icon="📝"
-        />
-
-        <MenuCard
-          href="/"
-          title={text.browseCourses}
-          subtitle={text.browseCoursesSub}
-          icon="🔎"
-        />
-
-        <MenuCard
-          href="/create-course"
-          title={text.createCourse}
-          subtitle={text.createCourseSub}
-          icon="✨"
-        />
-
-        <MenuCard
-          href="/create-written-course"
-          title={text.createWrittenCourse}
-          subtitle={text.createWrittenCourseSub}
-          icon="✍️"
-        />
-
-        <MenuCard
-          href="/visitor-dashboard"
-          title={text.visitorDashboard}
-          subtitle={text.visitorDashboardSub}
-          icon="📊"
-        />
-
-        <MenuCard
-          href="/create-news"
-          title={text.addNews}
-          subtitle={text.addNewsSub}
-          icon="📰"
-        />
-      </div>
-
-      <nav style={bottomNavStyle}>
-        <div style={navWrapStyle}>
-          <Link href="/" style={navItemStyle(false)}>
-            {text.home}
-          </Link>
-
-          <Link href="/create-course" style={navItemStyle(false)}>
-            {text.createCourse}
-          </Link>
-
-          <Link href="/profile" style={navItemStyle(true)}>
-            {text.profile}
-          </Link>
-        </div>
-      </nav>
-    </main>
-  );
-}
+          {earningsLoading ? (
+            <div style={statusStyle}>{text.earningsLoading}</div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(
