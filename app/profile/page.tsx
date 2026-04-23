@@ -506,6 +506,21 @@ export default function ProfilePage() {
           subtitle={text.addNewsSub}
           icon="📰"
         />
+
+        <MenuCard
+  href="/courses"
+  title={lang === "ar" ? "الدورات" : "Courses"}
+  subtitle={lang === "ar" ? "كل الدورات المرئية والملفات" : "All media courses"}
+  icon="🎓"
+/>
+
+<MenuCard
+  href="/written-courses"
+  title={lang === "ar" ? "الدورات المكتوبة" : "Written Courses"}
+  subtitle={lang === "ar" ? "الدورات النصية داخل الصفحة" : "Article courses"}
+  icon="✍️"
+/>
+
       </div>
 
       <nav style={bottomNavStyle}>
@@ -527,16 +542,3 @@ export default function ProfilePage() {
   );
 }
 
-<MenuCard
-  href="/courses"
-  title={lang === "ar" ? "الدورات" : "Courses"}
-  subtitle={lang === "ar" ? "كل الدورات المرئية والملفات" : "All media courses"}
-  icon="🎓"
-/>
-
-<MenuCard
-  href="/written-courses"
-  title={lang === "ar" ? "الدورات المكتوبة" : "Written Courses"}
-  subtitle={lang === "ar" ? "الدورات النصية داخل الصفحة" : "Article courses"}
-  icon="✍️"
-/>
