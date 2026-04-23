@@ -1,241 +1,242 @@
-"use client"
+"use client";
 
-import type { CSSProperties } from "react"
-import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
-import { createSupabaseClient } from "@/lib/supabase/client"
+import type { CSSProperties } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { createSupabaseClient } from "@/lib/supabase/client";
 import {
   translations,
   type Lang,
   getDirection,
   detectBrowserLanguage,
   applyLanguage,
-} from "@/lib/i18n"
+} from "@/lib/i18n";
 
 type ArticleBlock = {
-  id: string
-  type: "text" | "image"
-  heading?: string
-  text?: string
-  image_path?: string
-  image_url?: string
-  caption?: string
-}
+  id: string;
+  type: "text" | "image";
+  heading?: string;
+  text?: string;
+  image_path?: string;
+  image_url?: string;
+  caption?: string;
+};
 
 type ProtectedContent = {
-  video_url: string | null
-  file_url: string | null
-  article_blocks: ArticleBlock[]
-}
+  video_url: string | null;
+  file_url: string | null;
+  article_blocks: ArticleBlock[];
+};
 
 type Course = {
-  id: number
-  title: string
-  description: string | null
-  instructor_name: string
-  price: number | string | null
-  currency: string | null
-  is_free: boolean
-  image_url: string | null
-  video_url: string | null
-  file_url: string | null
-  video_path?: string | null
-  file_path?: string | null
-  duration: string | null
-  students_count: number | null
-  rating: number | null
-  is_new: boolean | null
-  owner_pi_uid: string | null
-  created_at: string
-  is_deleted?: boolean
-  content_type: string | null
-  article_blocks: ArticleBlock[] | null
-}
+  id: number;
+  title: string;
+  description: string | null;
+  instructor_name: string;
+  price: number | string | null;
+  currency: string | null;
+  is_free: boolean;
+  image_url: string | null;
+  video_url: string | null;
+  file_url: string | null;
+  video_path?: string | null;
+  file_path?: string | null;
+  duration: string | null;
+  students_count: number | null;
+  rating: number | null;
+  is_new: boolean | null;
+  owner_pi_uid: string | null;
+  created_at: string;
+  is_deleted?: boolean;
+  content_type: string | null;
+  article_blocks: ArticleBlock[] | null;
+};
 
 type PiUser = {
-  uid: string
-  username: string
-}
+  uid: string;
+  username: string;
+};
 
 export default function CourseDetailsPage() {
-  const params = useParams()
-  const router = useRouter()
-  const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id
-  const courseId = useMemo(() => Number(rawId), [rawId])
+  const params = useParams();
+  const router = useRouter();
 
-  const [lang, setLang] = useState<Lang>("ar")
-  const [course, setCourse] = useState<Course | null>(null)
-  const [piUser, setPiUser] = useState<PiUser | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [checkingAccess, setCheckingAccess] = useState(true)
-  const [hasAccess, setHasAccess] = useState(false)
-  const [buying, setBuying] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [piReady, setPiReady] = useState(false)
-  const [status, setStatus] = useState("")
-  const [protectedContent, setProtectedContent] = useState<ProtectedContent | null>(null)
-  const [loadingProtectedContent, setLoadingProtectedContent] = useState(false)
+  const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const courseId = useMemo(() => Number(rawId), [rawId]);
 
-  const t = translations[lang]
-  const dir = useMemo(() => getDirection(lang), [lang])
+  const [lang, setLang] = useState<Lang>("ar");
+  const [course, setCourse] = useState<Course | null>(null);
+  const [piUser, setPiUser] = useState<PiUser | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [buying, setBuying] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [piReady, setPiReady] = useState(false);
+  const [status, setStatus] = useState("");
+  const [protectedContent, setProtectedContent] = useState<ProtectedContent | null>(null);
+  const [loadingProtectedContent, setLoadingProtectedContent] = useState(false);
+
+  const t = translations[lang];
+  const dir = useMemo(() => getDirection(lang), [lang]);
 
   useEffect(() => {
-    const initialLang = detectBrowserLanguage()
-    setLang(initialLang)
-    applyLanguage(initialLang)
+    const initialLang = detectBrowserLanguage();
+    setLang(initialLang);
+    applyLanguage(initialLang);
 
-    const cachedUser = window.localStorage.getItem("pi_user")
+    const cachedUser = window.localStorage.getItem("pi_user");
     if (cachedUser) {
       try {
-        const parsed = JSON.parse(cachedUser)
+        const parsed = JSON.parse(cachedUser);
         if (parsed?.uid && parsed?.username) {
-          setPiUser(parsed)
+          setPiUser(parsed);
         }
       } catch (error) {
-        console.error("Failed to parse pi_user", error)
+        console.error("Failed to parse pi_user", error);
       }
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    let attempts = 0
+    let attempts = 0;
 
     const timer = window.setInterval(() => {
-      attempts += 1
-      const Pi = (window as typeof window & { Pi?: any }).Pi
+      attempts += 1;
+      const Pi = (window as typeof window & { Pi?: any }).Pi;
 
       if (!Pi?.init) {
         if (attempts >= 15) {
-          setStatus(t.piMissing)
-          window.clearInterval(timer)
+          setStatus(t.piMissing);
+          window.clearInterval(timer);
         }
-        return
+        return;
       }
 
-      window.clearInterval(timer)
+      window.clearInterval(timer);
 
       try {
         Pi.init({
           version: "2.0",
           sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX === "true",
-        })
-        setPiReady(true)
+        });
+        setPiReady(true);
       } catch (error: any) {
-        console.error("Pi init error:", error)
-        setStatus(error?.message || t.piInitFailed)
+        console.error("Pi init error:", error);
+        setStatus(error?.message || t.piInitFailed);
       }
-    }, 500)
+    }, 500);
 
-    return () => window.clearInterval(timer)
-  }, [t.piMissing, t.piInitFailed])
+    return () => window.clearInterval(timer);
+  }, [t.piMissing, t.piInitFailed]);
 
   useEffect(() => {
     const loadCourse = async () => {
       try {
-        setLoading(true)
-        setStatus("")
+        setLoading(true);
+        setStatus("");
 
-        const supabase = createSupabaseClient()
+        const supabase = createSupabaseClient();
 
         const { data, error } = await supabase
           .from("courses")
           .select("*")
           .eq("id", courseId)
           .eq("is_deleted", false)
-          .single()
+          .single();
 
         if (error) {
-          throw new Error(error.message)
+          throw new Error(error.message);
         }
 
-        setCourse(data as Course)
+        setCourse(data as Course);
       } catch (error: any) {
-        console.error(error)
-        setStatus(error?.message || t.loadingCourse)
+        console.error(error);
+        setStatus(error?.message || t.loadingCourse);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
     if (!Number.isNaN(courseId) && courseId > 0) {
-      loadCourse()
+      void loadCourse();
     }
-  }, [courseId, t.loadingCourse])
+  }, [courseId, t.loadingCourse]);
 
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        setCheckingAccess(true)
+        setCheckingAccess(true);
 
         if (!courseId || Number.isNaN(courseId) || !course) {
-          setHasAccess(false)
-          return
+          setHasAccess(false);
+          return;
         }
 
         if (course.is_free) {
-          setHasAccess(!!piUser?.uid)
-          return
+          setHasAccess(!!piUser?.uid);
+          return;
         }
 
         if (!piUser?.uid) {
-          const localOwned = window.localStorage.getItem(`owned_course_${courseId}`)
-          setHasAccess(localOwned === "true")
-          return
+          const localOwned = window.localStorage.getItem(`owned_course_${courseId}`);
+          setHasAccess(localOwned === "true");
+          return;
         }
 
-        const supabase = createSupabaseClient()
-
+        const supabase = createSupabaseClient();
         const { data, error } = await supabase
           .from("purchases")
           .select("payment_id,status")
           .eq("course_id", courseId)
           .eq("uid", piUser.uid)
           .eq("status", "completed")
-          .limit(1)
+          .limit(1);
 
         if (error) {
-          console.error("Purchase check error:", error)
-          const localOwned = window.localStorage.getItem(`owned_course_${courseId}`)
-          setHasAccess(localOwned === "true")
-          return
+          console.error("Purchase check error:", error);
+          const localOwned = window.localStorage.getItem(`owned_course_${courseId}`);
+          setHasAccess(localOwned === "true");
+          return;
         }
 
-        const bought = Array.isArray(data) && data.length > 0
-        setHasAccess(bought)
+        const bought = Array.isArray(data) && data.length > 0;
+        setHasAccess(bought);
 
         if (bought) {
-          window.localStorage.setItem(`owned_course_${courseId}`, "true")
+          window.localStorage.setItem(`owned_course_${courseId}`, "true");
         }
       } finally {
-        setCheckingAccess(false)
+        setCheckingAccess(false);
       }
-    }
+    };
 
-    checkAccess()
-  }, [courseId, course, piUser])
+    void checkAccess();
+  }, [courseId, course, piUser]);
 
   useEffect(() => {
     const loadProtectedContent = async () => {
       try {
         if (!course || !hasAccess) {
-          setProtectedContent(null)
-          return
+          setProtectedContent(null);
+          return;
         }
 
-        const sessionToken = window.localStorage.getItem("pi_session_token") || ""
+        const sessionToken = window.localStorage.getItem("pi_session_token") || "";
 
         if (!sessionToken) {
-          setProtectedContent(null)
+          setProtectedContent(null);
           setStatus(
             lang === "ar"
               ? "جلسة المستخدم غير موجودة. يرجى تسجيل الدخول من جديد."
               : "Missing session. Please sign in again."
-          )
-          return
+          );
+          return;
         }
 
-        setLoadingProtectedContent(true)
+        setLoadingProtectedContent(true);
 
         const res = await fetch(`/api/courses/${course.id}/protected-content`, {
           method: "GET",
@@ -243,68 +244,144 @@ export default function CourseDetailsPage() {
           headers: {
             Authorization: `Bearer ${sessionToken}`,
           },
-        })
+        });
 
-        const json = await res.json().catch(() => ({}))
+        const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
           throw new Error(
             json?.error ||
-              (lang === "ar" ? "فشل تحميل محتوى الدورة" : "Failed to load course content")
-          )
+              (lang === "ar"
+                ? "فشل تحميل محتوى الدورة"
+                : "Failed to load course content")
+          );
         }
 
-        setProtectedContent(json.content || null)
+        setProtectedContent(json.content || null);
       } catch (error: any) {
-        console.error(error)
+        console.error(error);
         setStatus(
           error?.message ||
-            (lang === "ar" ? "فشل تحميل محتوى الدورة" : "Failed to load course content")
-        )
+            (lang === "ar"
+              ? "فشل تحميل محتوى الدورة"
+              : "Failed to load course content")
+        );
       } finally {
-        setLoadingProtectedContent(false)
+        setLoadingProtectedContent(false);
       }
-    }
+    };
 
-    loadProtectedContent()
-  }, [course, hasAccess, lang])
+    void loadProtectedContent();
+  }, [course, hasAccess, lang]);
 
   const changeLanguage = (nextLang: Lang) => {
-    setLang(nextLang)
-    window.localStorage.setItem("app_lang", nextLang)
-    applyLanguage(nextLang)
-  }
+    setLang(nextLang);
+    window.localStorage.setItem("app_lang", nextLang);
+    applyLanguage(nextLang);
+  };
 
-  const refreshAccessFromSupabase = async () => {
-    if (!piUser?.uid) return false
+  const refreshAccessFromSupabase = async (uidOverride?: string) => {
+    const currentUid = uidOverride || piUser?.uid;
+    if (!currentUid) return false;
 
-    const supabase = createSupabaseClient()
-
+    const supabase = createSupabaseClient();
     const { data, error } = await supabase
       .from("purchases")
       .select("payment_id,status")
       .eq("course_id", courseId)
-      .eq("uid", piUser.uid)
+      .eq("uid", currentUid)
       .eq("status", "completed")
-      .limit(1)
+      .limit(1);
 
     if (error) {
-      throw new Error(error.message)
+      throw new Error(error.message);
     }
 
-    const bought = Array.isArray(data) && data.length > 0
-    setHasAccess(bought)
+    const bought = Array.isArray(data) && data.length > 0;
+    setHasAccess(bought);
 
     if (bought) {
-      window.localStorage.setItem(`owned_course_${courseId}`, "true")
+      window.localStorage.setItem(`owned_course_${courseId}`, "true");
     }
 
-    return bought
-  }
+    return bought;
+  };
+
+  const ensurePiAuthForPayments = async () => {
+    const Pi = (window as typeof window & { Pi?: any }).Pi;
+
+    if (!Pi?.authenticate) {
+      throw new Error(
+        lang === "ar"
+          ? "افتح التطبيق من Pi Browser أولًا"
+          : "Open the app in Pi Browser first"
+      );
+    }
+
+    const authResult = await Pi.authenticate(
+      ["username", "payments"],
+      (payment: any) => {
+        console.log("Incomplete payment found:", payment);
+      }
+    );
+
+    const accessToken = authResult?.accessToken;
+    const authUsername = authResult?.user?.username || "";
+
+    if (!accessToken) {
+      throw new Error(
+        lang === "ar"
+          ? "فشل الحصول على صلاحية الدفع من Pi"
+          : "Failed to get Pi payment scope"
+      );
+    }
+
+    const res = await fetch("/api/pi/user", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        accessToken,
+        authUsername,
+      }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      throw new Error(json?.error || "Pi authentication failed");
+    }
+
+    const user = json?.user;
+
+    if (!user?.uid || !user?.username) {
+      throw new Error(
+        lang === "ar"
+          ? "بيانات مستخدم Pi غير صالحة"
+          : "Invalid Pi user data"
+      );
+    }
+
+    const normalizedUser = {
+      uid: user.uid,
+      username: user.username,
+    };
+
+    window.localStorage.setItem("pi_user", JSON.stringify(normalizedUser));
+
+    if (json?.sessionToken) {
+      window.localStorage.setItem("pi_session_token", json.sessionToken);
+    }
+
+    setPiUser(normalizedUser);
+
+    return normalizedUser;
+  };
 
   const handleBuyCourse = async () => {
     try {
-      if (!course) return
+      if (!course) return;
 
       if (course.is_free) {
         if (!piUser) {
@@ -312,37 +389,43 @@ export default function CourseDetailsPage() {
             lang === "ar"
               ? "يجب تسجيل الدخول بواسطة Pi للوصول إلى هذه الدورة، حتى لو كانت مجانية."
               : "You must sign in with Pi to access this course, even if it is free."
-          )
-          return
+          );
+          return;
         }
 
-        setHasAccess(true)
+        setHasAccess(true);
         setStatus(
-          lang === "ar" ? "تم فتح الدورة المجانية بنجاح" : "Free course unlocked successfully"
-        )
-        return
+          lang === "ar"
+            ? "تم فتح الدورة المجانية بنجاح"
+            : "Free course unlocked successfully"
+        );
+        return;
       }
 
-      const Pi = (window as typeof window & { Pi?: any }).Pi
+      const Pi = (window as typeof window & { Pi?: any }).Pi;
 
       if (!Pi?.createPayment || !piReady) {
-        setStatus(t.paymentUnavailable)
-        return
+        setStatus(t.paymentUnavailable);
+        return;
       }
 
-      if (!piUser) {
-        setStatus(t.mustConnectPiFirst)
-        return
-      }
+      setStatus(
+        lang === "ar"
+          ? "جاري التحقق من حساب Pi وصلاحية الدفع..."
+          : "Checking Pi account and payments scope..."
+      );
 
-      const amount = Number(course.price || 0)
+      const currentUser = await ensurePiAuthForPayments();
+
+      const amount = Number(course.price || 0);
+
       if (!amount || amount <= 0) {
-        setStatus(t.invalidPrice)
-        return
+        setStatus(t.invalidPrice);
+        return;
       }
 
-      setBuying(true)
-      setStatus(t.paymentStarted)
+      setBuying(true);
+      setStatus(t.paymentStarted);
 
       Pi.createPayment(
         {
@@ -355,7 +438,7 @@ export default function CourseDetailsPage() {
         },
         {
           onReadyForServerApproval: async (paymentId: string) => {
-            setStatus(t.paymentApproving)
+            setStatus(t.paymentApproving);
 
             const res = await fetch("/api/payments/approve", {
               method: "POST",
@@ -363,18 +446,18 @@ export default function CourseDetailsPage() {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({ paymentId }),
-            })
+            });
 
-            const json = await res.json().catch(() => ({}))
+            const json = await res.json().catch(() => ({}));
 
             if (!res.ok) {
-              throw new Error(json?.error || t.paymentFailed)
+              throw new Error(json?.error || t.paymentFailed);
             }
           },
 
           onReadyForServerCompletion: async (paymentId: string, txid: string) => {
             try {
-              setStatus(t.paymentCompleting)
+              setStatus(t.paymentCompleting);
 
               const res = await fetch("/api/payments/complete", {
                 method: "POST",
@@ -385,60 +468,60 @@ export default function CourseDetailsPage() {
                   paymentId,
                   txid,
                   courseId: course.id,
-                  uid: piUser.uid,
-                  username: piUser.username,
+                  uid: currentUser.uid,
+                  username: currentUser.username,
                 }),
-              })
+              });
 
-              const json = await res.json().catch(() => ({}))
+              const json = await res.json().catch(() => ({}));
 
               if (!res.ok) {
-                throw new Error(json?.error || t.paymentFailed)
+                throw new Error(json?.error || t.paymentFailed);
               }
 
-              await refreshAccessFromSupabase()
-              setStatus(t.paymentSuccess)
+              await refreshAccessFromSupabase(currentUser.uid);
+              setStatus(t.paymentSuccess);
             } catch (error: any) {
-              console.error("complete error:", error)
-              setStatus(error?.message || t.paymentFailed)
+              console.error("complete error:", error);
+              setStatus(error?.message || t.paymentFailed);
             } finally {
-              setBuying(false)
+              setBuying(false);
             }
           },
 
           onCancel: () => {
-            setBuying(false)
-            setStatus(t.paymentCancelled)
+            setBuying(false);
+            setStatus(t.paymentCancelled);
           },
 
           onError: (error: any) => {
-            console.error("Pi payment error:", error)
-            setBuying(false)
-            setStatus(error?.message || t.paymentFailed)
+            console.error("Pi payment error:", error);
+            setBuying(false);
+            setStatus(error?.message || t.paymentFailed);
           },
         }
-      )
+      );
     } catch (error: any) {
-      console.error(error)
-      setBuying(false)
-      setStatus(error?.message || t.paymentFailed)
+      console.error(error);
+      setBuying(false);
+      setStatus(error?.message || t.paymentFailed);
     }
-  }
+  };
 
   const handleDeleteCourse = async () => {
     try {
-      if (!course || !piUser?.uid) return
+      if (!course || !piUser?.uid) return;
 
       const confirmed = window.confirm(
         lang === "ar"
           ? "هل أنت متأكد أنك تريد حذف هذه الدورة؟"
           : "Are you sure you want to delete this course?"
-      )
+      );
 
-      if (!confirmed) return
+      if (!confirmed) return;
 
-      setDeleting(true)
-      setStatus(lang === "ar" ? "جاري حذف الدورة..." : "Deleting course...")
+      setDeleting(true);
+      setStatus(lang === "ar" ? "جاري حذف الدورة..." : "Deleting course...");
 
       const res = await fetch(`/api/courses/${course.id}`, {
         method: "DELETE",
@@ -448,73 +531,253 @@ export default function CourseDetailsPage() {
         body: JSON.stringify({
           uid: piUser.uid,
         }),
-      })
+      });
 
-      const json = await res.json().catch(() => ({}))
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         throw new Error(
-          json?.error || (lang === "ar" ? "فشل حذف الدورة" : "Failed to delete course")
-        )
+          json?.error ||
+            (lang === "ar" ? "فشل حذف الدورة" : "Failed to delete course")
+        );
       }
 
       setStatus(
         lang === "ar" ? "تم حذف الدورة بنجاح" : "Course deleted successfully"
-      )
+      );
 
       setTimeout(() => {
-        router.push("/my-courses")
-      }, 1000)
+        router.push("/my-courses");
+      }, 1000);
     } catch (error: any) {
-      console.error(error)
+      console.error(error);
       setStatus(
-        error?.message || (lang === "ar" ? "فشل حذف الدورة" : "Failed to delete course")
-      )
+        error?.message ||
+          (lang === "ar" ? "فشل حذف الدورة" : "Failed to delete course")
+      );
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
-  }
+  };
+
+  const pageStyle: CSSProperties = {
+    minHeight: "100vh",
+    paddingBottom: 120,
+    background: "var(--bg-primary)",
+    fontFamily: "var(--font-tajawal), sans-serif",
+  };
+
+  const containerStyle: CSSProperties = {
+    maxWidth: 760,
+    margin: "0 auto",
+    padding: "20px 16px 120px",
+  };
+
+  const cardStyle: CSSProperties = {
+    background: "var(--bg-card)",
+    borderRadius: 28,
+    overflow: "hidden",
+    boxShadow: "var(--shadow-lg)",
+    border: "1px solid var(--border-color)",
+  };
+
+  const imageStyle: CSSProperties = {
+    width: "100%",
+    height: 280,
+    objectFit: "cover",
+    display: "block",
+    background: "#eef2ff",
+  };
+
+  const contentStyle: CSSProperties = {
+    padding: 22,
+  };
+
+  const badgeStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 80,
+    padding: "10px 18px",
+    borderRadius: 999,
+    background: "#22c55e",
+    color: "#fff",
+    fontWeight: 800,
+    fontSize: 16,
+    marginBottom: 18,
+  };
+
+  const titleStyle: CSSProperties = {
+    fontSize: 34,
+    fontWeight: 900,
+    color: "#0f172a",
+    margin: "0 0 12px",
+  };
+
+  const instructorStyle: CSSProperties = {
+    color: "#64748b",
+    fontSize: 16,
+    marginBottom: 14,
+  };
+
+  const descriptionStyle: CSSProperties = {
+    color: "#475569",
+    fontSize: 16,
+    lineHeight: 1.9,
+    marginBottom: 20,
+  };
+
+  const statsGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 12,
+    marginBottom: 22,
+  };
+
+  const statBoxStyle: CSSProperties = {
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: 18,
+    padding: 16,
+    fontSize: 16,
+    color: "#334155",
+    lineHeight: 1.8,
+  };
+
+  const actionButtonStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 72,
+    borderRadius: 22,
+    border: "none",
+    background: "#08153c",
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: 900,
+    cursor: "pointer",
+    marginTop: 10,
+  };
+
+  const deleteButtonStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 72,
+    borderRadius: 22,
+    border: "2px solid #ef4444",
+    background: "#fff",
+    color: "#ef4444",
+    fontSize: 22,
+    fontWeight: 900,
+    cursor: "pointer",
+    marginTop: 16,
+  };
+
+  const statusBoxStyle: CSSProperties = {
+    marginTop: 18,
+    color: "#64748b",
+    fontSize: 16,
+    lineHeight: 1.8,
+    whiteSpace: "pre-wrap",
+  };
+
+  const sectionTitleStyle: CSSProperties = {
+    fontSize: 26,
+    fontWeight: 900,
+    color: "#0f172a",
+    margin: "26px 0 14px",
+  };
+
+  const articleBlockStyle: CSSProperties = {
+    background: "#fff",
+    borderRadius: 20,
+    padding: 18,
+    border: "1px solid #e2e8f0",
+    marginBottom: 14,
+  };
+
+  const backRowStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    gap: 12,
+  };
+
+  const backLinkStyle: CSSProperties = {
+    color: "#334155",
+    textDecoration: "none",
+    fontWeight: 800,
+    fontSize: 16,
+  };
+
+  const languageToggleStyle: CSSProperties = {
+    display: "inline-flex",
+    gap: 8,
+    background: "var(--bg-hover)",
+    padding: "6px",
+    borderRadius: "14px",
+    border: "1px solid var(--border-color)",
+  };
+
+  const langButtonStyle = (active: boolean): CSSProperties => ({
+    padding: "8px 14px",
+    borderRadius: "10px",
+    border: "none",
+    background: active
+      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+      : "transparent",
+    color: active ? "white" : "var(--text-secondary)",
+    fontWeight: active ? 700 : 600,
+    fontSize: 13,
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+  });
 
   if (loading) {
     return (
-      <main style={{ ...pageStyle, direction: dir }}>
-        <div style={containerStyle}>{t.loadingCourse}</div>
+      <main style={pageStyle} dir={dir}>
+        <div style={containerStyle}>
+          <div style={cardStyle}>
+            <div style={{ padding: 24, fontSize: 18 }}>{t.loadingCourse}</div>
+          </div>
+        </div>
       </main>
-    )
+    );
   }
 
   if (!course) {
     return (
-      <main style={{ ...pageStyle, direction: dir }}>
+      <main style={pageStyle} dir={dir}>
         <div style={containerStyle}>
-          <Link href="/" style={backLinkStyle}>
-            {t.back}
-          </Link>
-          <div style={cardStyle}>{t.courseNotFound}</div>
-        </div>
-      </main>
-    )
-  }
-
-  const imageUrl = course.image_url || "/placeholder.svg"
-  const priceText = course.is_free ? t.free : `${course.price} ${course.currency || "PI"}`
-  const isOwner = !!piUser?.uid && piUser.uid === course.owner_pi_uid
-
-  const articleBlocks = protectedContent?.article_blocks || []
-  const hasWrittenContent =
-    course.content_type === "article" && Array.isArray(articleBlocks) && articleBlocks.length > 0
-
-  return (
-    <main style={{ ...pageStyle, direction: dir }}>
-      <div style={containerStyle}>
-        <div style={headerRowStyle}>
-          <div>
+          <div style={backRowStyle}>
             <Link href="/" style={backLinkStyle}>
               {t.back}
             </Link>
           </div>
+          <div style={cardStyle}>
+            <div style={{ padding: 24, fontSize: 18 }}>{t.courseNotFound}</div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
-          <div style={languageWrapStyle}>
+  const imageUrl = course.image_url || "/placeholder.svg";
+  const priceText = course.is_free ? t.free : `${course.price} ${course.currency || "PI"}`;
+  const isOwner = !!piUser?.uid && piUser.uid === course.owner_pi_uid;
+  const articleBlocks = protectedContent?.article_blocks || [];
+  const hasWrittenContent =
+    course.content_type === "article" &&
+    Array.isArray(articleBlocks) &&
+    articleBlocks.length > 0;
+
+  return (
+    <main style={pageStyle} dir={dir}>
+      <div style={containerStyle}>
+        <div style={backRowStyle}>
+          <Link href="/" style={backLinkStyle}>
+            {t.back}
+          </Link>
+
+          <div style={languageToggleStyle}>
             <button
               onClick={() => changeLanguage("ar")}
               style={langButtonStyle(lang === "ar")}
@@ -532,44 +795,41 @@ export default function CourseDetailsPage() {
           </div>
         </div>
 
-        <section style={{ ...cardStyle, overflow: "hidden", padding: 0 }}>
-          <div style={imageWrapStyle}>
-            <img src={imageUrl} alt={course.title} style={imageStyle} />
-          </div>
+        <div style={cardStyle}>
+          <img src={imageUrl} alt={course.title} style={imageStyle} />
 
           <div style={contentStyle}>
-            <div style={titleRowStyle}>
-              <h1 style={titleStyle}>{course.title}</h1>
-              {course.is_new ? <span style={badgeStyle}>{t.new}</span> : null}
+            {course.is_new ? <div style={badgeStyle}>{t.new}</div> : null}
+
+            <h1 style={titleStyle}>{course.title}</h1>
+
+            <div style={instructorStyle}>
+              {t.instructorBy} {course.instructor_name}
             </div>
 
-            <p style={metaTextStyle}>
-              {t.instructorBy} {course.instructor_name}
-            </p>
-
-            <p style={descriptionStyle}>{course.description || t.noDescription}</p>
+            <div style={descriptionStyle}>{course.description || t.noDescription}</div>
 
             <div style={statsGridStyle}>
-              <div>
+              <div style={statBoxStyle}>
                 {t.rating}: {course.rating ?? 0}
               </div>
-              <div>
+              <div style={statBoxStyle}>
                 {t.students}: {course.students_count ?? 0}
               </div>
-              <div>
+              <div style={statBoxStyle}>
                 {t.duration}: {course.duration || t.notSpecified}
               </div>
-              <div>
+              <div style={statBoxStyle}>
                 {t.price}: {priceText}
               </div>
             </div>
 
             {checkingAccess ? (
-              <div style={contentBoxStyle}>{t.checkingAccess}</div>
+              <div style={statusBoxStyle}>{t.checkingAccess}</div>
             ) : !hasAccess ? (
-              <div style={purchaseAreaStyle}>
+              <>
                 {!piUser ? (
-                  <div style={warningBoxStyle}>
+                  <div style={statusBoxStyle}>
                     {lang === "ar"
                       ? "يجب تسجيل الدخول بواسطة Pi للوصول إلى هذه الدورة، حتى لو كانت مجانية."
                       : "You must sign in with Pi to access this course, even if it is free."}
@@ -578,23 +838,14 @@ export default function CourseDetailsPage() {
 
                 <button
                   onClick={handleBuyCourse}
-                  disabled={buying || !piUser || (!course.is_free && !piReady)}
-                  style={{
-                    ...buyButtonStyle,
-                    background:
-                      buying || !piUser || (!course.is_free && !piReady)
-                        ? "#94a3b8"
-                        : "#0f172a",
-                    cursor:
-                      buying || !piUser || (!course.is_free && !piReady)
-                        ? "not-allowed"
-                        : "pointer",
-                  }}
+                  disabled={buying}
+                  type="button"
+                  style={actionButtonStyle}
                 >
                   {course.is_free
                     ? t.startNow
                     : buying
-                    ? t.buyingNow
+                    ? (lang === "ar" ? "جاري الشراء..." : "Buying...")
                     : `${t.buyNow} - ${priceText}`}
                 </button>
 
@@ -602,11 +853,8 @@ export default function CourseDetailsPage() {
                   <button
                     onClick={handleDeleteCourse}
                     disabled={deleting}
-                    style={{
-                      ...deleteButtonStyle,
-                      opacity: deleting ? 0.7 : 1,
-                      cursor: deleting ? "not-allowed" : "pointer",
-                    }}
+                    type="button"
+                    style={deleteButtonStyle}
                   >
                     {deleting
                       ? lang === "ar"
@@ -618,132 +866,117 @@ export default function CourseDetailsPage() {
                   </button>
                 ) : null}
 
-                {status ? <div style={statusTextStyle}>{status}</div> : null}
-              </div>
+                {status ? <div style={statusBoxStyle}>{status}</div> : null}
+              </>
             ) : (
-              <div style={accessAreaStyle}>
-                <div style={successBoxStyle}>{t.courseContentAccess}</div>
+              <>
+                <div style={sectionTitleStyle}>{t.courseContentAccess}</div>
 
                 {loadingProtectedContent ? (
-                  <div style={contentBoxStyle}>
-                    {lang === "ar" ? "جاري تحميل المحتوى المحمي..." : "Loading protected content..."}
+                  <div style={statusBoxStyle}>
+                    {lang === "ar"
+                      ? "جاري تحميل المحتوى المحمي..."
+                      : "Loading protected content..."}
                   </div>
                 ) : null}
 
                 {hasWrittenContent ? (
-                  <div style={contentBoxStyle}>
+                  <>
                     <div style={sectionTitleStyle}>
                       {lang === "ar" ? "محتوى الدورة المكتوبة" : "Written Course Content"}
                     </div>
 
-                    <div style={{ display: "grid", gap: 18 }}>
-                      {articleBlocks.map((block, index) => {
-                        if (block.type === "text") {
-                          return (
-                            <div
-                              key={block.id || index}
-                              style={{ display: "grid", gap: 10 }}
-                            >
-                              {block.heading ? (
-                                <div
-                                  style={{
-                                    fontSize: 22,
-                                    fontWeight: 900,
-                                    color: "#0f172a",
-                                    lineHeight: 1.6,
-                                  }}
-                                >
-                                  {block.heading}
-                                </div>
-                              ) : null}
+                    {articleBlocks.map((block, index) => {
+                      if (block.type === "text") {
+                        return (
+                          <div key={block.id || `${index}`} style={articleBlockStyle}>
+                            {block.heading ? (
+                              <h3 style={{ marginTop: 0, marginBottom: 10 }}>{block.heading}</h3>
+                            ) : null}
+                            <div style={{ lineHeight: 1.9, color: "#334155" }}>{block.text}</div>
+                          </div>
+                        );
+                      }
 
-                              <div
-                                style={{
-                                  lineHeight: 2,
-                                  color: "#334155",
-                                  whiteSpace: "pre-wrap",
-                                  fontSize: 16,
-                                }}
-                              >
-                                {block.text}
+                      if (block.type === "image" && block.image_url) {
+                        return (
+                          <div key={block.id || `${index}`} style={articleBlockStyle}>
+                            <img
+                              src={block.image_url}
+                              alt={block.caption || "course image"}
+                              style={{
+                                width: "100%",
+                                borderRadius: 16,
+                                display: "block",
+                              }}
+                            />
+                            {block.caption ? (
+                              <div style={{ marginTop: 10, color: "#64748b", fontSize: 14 }}>
+                                {block.caption}
                               </div>
-                            </div>
-                          )
-                        }
+                            ) : null}
+                          </div>
+                        );
+                      }
 
-                        if (block.type === "image" && block.image_url) {
-                          return (
-                            <figure
-                              key={block.id || index}
-                              style={{ margin: 0, display: "grid", gap: 8 }}
-                            >
-                              <img
-                                src={block.image_url}
-                                alt={block.caption || `image-${index}`}
-                                style={{
-                                  width: "100%",
-                                  borderRadius: 16,
-                                  objectFit: "cover",
-                                }}
-                              />
-                              {block.caption ? (
-                                <figcaption
-                                  style={{
-                                    color: "#64748b",
-                                    fontSize: 14,
-                                    textAlign: "center",
-                                  }}
-                                >
-                                  {block.caption}
-                                </figcaption>
-                              ) : null}
-                            </figure>
-                          )
-                        }
-
-                        return null
-                      })}
-                    </div>
-                  </div>
+                      return null;
+                    })}
+                  </>
                 ) : null}
 
                 {protectedContent?.video_url ? (
-                  <div style={contentBoxStyle}>
+                  <>
                     <div style={sectionTitleStyle}>{t.courseVideo}</div>
-                    <video controls src={protectedContent.video_url} style={videoStyle} />
-                  </div>
+                    <video
+                      src={protectedContent.video_url}
+                      controls
+                      style={{
+                        width: "100%",
+                        borderRadius: 20,
+                        background: "#000",
+                      }}
+                    />
+                  </>
                 ) : null}
 
                 {protectedContent?.file_url ? (
-                  <div style={contentBoxStyle}>
+                  <>
                     <div style={sectionTitleStyle}>{t.courseFile}</div>
                     <a
                       href={protectedContent.file_url}
                       target="_blank"
                       rel="noreferrer"
-                      style={downloadLinkStyle}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 56,
+                        padding: "0 20px",
+                        borderRadius: 18,
+                        background: "#0f172a",
+                        color: "#fff",
+                        textDecoration: "none",
+                        fontWeight: 800,
+                      }}
                     >
                       {t.openOrDownloadFile}
                     </a>
-                  </div>
+                  </>
                 ) : null}
 
                 {course.content_type !== "article" &&
                 !protectedContent?.video_url &&
                 !protectedContent?.file_url &&
                 !loadingProtectedContent ? (
-                  <div style={contentBoxStyle}>{t.noUploadedContent}</div>
+                  <div style={statusBoxStyle}>{t.noUploadedContent}</div>
                 ) : null}
 
                 {isOwner ? (
                   <button
                     onClick={handleDeleteCourse}
                     disabled={deleting}
-                    style={{
-                      ...deleteButtonStyle,
-                      opacity: deleting ? 0.7 : 1,
-                      cursor: deleting ? "not-allowed" : "pointer",
-                    }}
+                    type="button"
+                    style={deleteButtonStyle}
                   >
                     {deleting
                       ? lang === "ar"
@@ -755,213 +988,12 @@ export default function CourseDetailsPage() {
                   </button>
                 ) : null}
 
-                {status ? <div style={statusTextStyle}>{status}</div> : null}
-              </div>
+                {status ? <div style={statusBoxStyle}>{status}</div> : null}
+              </>
             )}
           </div>
-        </section>
+        </div>
       </div>
     </main>
-  )
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: "100vh",
-  paddingBottom: 40,
-}
-
-const containerStyle: CSSProperties = {
-  maxWidth: 460,
-  margin: "0 auto",
-  padding: 14,
-}
-
-const headerRowStyle: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: 12,
-  marginBottom: 12,
-}
-
-const languageWrapStyle: CSSProperties = {
-  display: "flex",
-  gap: 8,
-  flexShrink: 0,
-}
-
-function langButtonStyle(active: boolean): CSSProperties {
-  return {
-    border: "1px solid #cbd5e1",
-    background: active ? "#0f172a" : "white",
-    color: active ? "white" : "#0f172a",
-    borderRadius: 12,
-    padding: "10px 12px",
-    fontSize: 13,
-    fontWeight: 800,
-    cursor: "pointer",
-  }
-}
-
-const cardStyle: CSSProperties = {
-  background: "white",
-  border: "1px solid #e5e7eb",
-  borderRadius: 24,
-  padding: 16,
-}
-
-const backLinkStyle: CSSProperties = {
-  display: "inline-block",
-  color: "#0f172a",
-  textDecoration: "none",
-  fontSize: 14,
-}
-
-const imageWrapStyle: CSSProperties = {
-  width: "100%",
-  height: 220,
-  background: "#e2e8f0",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  overflow: "hidden",
-}
-
-const imageStyle: CSSProperties = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-}
-
-const contentStyle: CSSProperties = {
-  padding: 18,
-}
-
-const titleRowStyle: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 12,
-  alignItems: "flex-start",
-}
-
-const titleStyle: CSSProperties = {
-  fontSize: 28,
-  fontWeight: 900,
-  margin: 0,
-  color: "#0f172a",
-}
-
-const badgeStyle: CSSProperties = {
-  background: "#22c55e",
-  color: "white",
-  borderRadius: 999,
-  padding: "8px 14px",
-  fontWeight: 800,
-  whiteSpace: "nowrap",
-  height: "fit-content",
-}
-
-const metaTextStyle: CSSProperties = {
-  color: "#64748b",
-  marginTop: 10,
-  marginBottom: 10,
-}
-
-const descriptionStyle: CSSProperties = {
-  color: "#475569",
-  lineHeight: 1.9,
-  marginBottom: 18,
-}
-
-const statsGridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: 10,
-  marginBottom: 18,
-  color: "#334155",
-}
-
-const purchaseAreaStyle: CSSProperties = {
-  borderTop: "1px solid #e5e7eb",
-  paddingTop: 16,
-  display: "grid",
-  gap: 12,
-}
-
-const accessAreaStyle: CSSProperties = {
-  borderTop: "1px solid #e5e7eb",
-  paddingTop: 16,
-  display: "grid",
-  gap: 16,
-}
-
-const contentBoxStyle: CSSProperties = {
-  background: "#f8fafc",
-  border: "1px solid #e2e8f0",
-  borderRadius: 16,
-  padding: 14,
-}
-
-const warningBoxStyle: CSSProperties = {
-  background: "#fff7ed",
-  border: "1px solid #fdba74",
-  color: "#9a3412",
-  borderRadius: 14,
-  padding: 12,
-  lineHeight: 1.8,
-}
-
-const successBoxStyle: CSSProperties = {
-  background: "#ecfdf5",
-  border: "1px solid #a7f3d0",
-  color: "#065f46",
-  borderRadius: 14,
-  padding: 12,
-  fontWeight: 700,
-}
-
-const buyButtonStyle: CSSProperties = {
-  border: "none",
-  color: "white",
-  borderRadius: 18,
-  padding: "16px 20px",
-  fontSize: 18,
-  fontWeight: 900,
-}
-
-const deleteButtonStyle: CSSProperties = {
-  border: "1px solid #ef4444",
-  background: "white",
-  color: "#ef4444",
-  borderRadius: 18,
-  padding: "14px 18px",
-  fontSize: 16,
-  fontWeight: 900,
-}
-
-const sectionTitleStyle: CSSProperties = {
-  fontWeight: 900,
-  fontSize: 18,
-  marginBottom: 10,
-  color: "#0f172a",
-}
-
-const videoStyle: CSSProperties = {
-  width: "100%",
-  borderRadius: 14,
-}
-
-const downloadLinkStyle: CSSProperties = {
-  display: "inline-block",
-  background: "#0f172a",
-  color: "white",
-  textDecoration: "none",
-  padding: "12px 16px",
-  borderRadius: 14,
-  fontWeight: 800,
-}
-
-const statusTextStyle: CSSProperties = {
-  color: "#64748b",
-  lineHeight: 1.8,
+  );
 }
