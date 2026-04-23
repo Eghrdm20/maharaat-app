@@ -99,35 +99,40 @@ export default function CreateCoursePage() {
   const uploadToBucket = async (bucket: string, folder: string, file: File) => {
     const supabase = createSupabaseClient();
 
-    const ext = file.name.split(".").pop() || "bin";
-    const fileName = `${folder}-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}.${ext}`;
-    const filePath = `${folder}/${fileName}`;
+    const signedRes = await fetch("/api/storage/upload-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bucket,
+        folder,
+        fileName: file.name,
+      }),
+    });
+
+    const signedJson = await signedRes.json().catch(() => ({}));
+
+    if (!signedRes.ok || !signedJson?.ok) {
+      throw new Error(
+        signedJson?.error || `${bucket}: failed to prepare signed upload`
+      );
+    }
+
+    const { path, token, publicUrl } = signedJson;
 
     const { error: uploadError } = await supabase.storage
       .from(bucket)
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
+      .uploadToSignedUrl(path, token, file, {
         contentType: file.type || undefined,
+        upsert: false,
       });
 
     if (uploadError) {
       throw new Error(`${bucket}: ${uploadError.message}`);
     }
 
-    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-
-    if (!data?.publicUrl) {
-      throw new Error(
-        lang === "ar"
-          ? `تعذر إنشاء رابط الملف من ${bucket}`
-          : `Could not create public URL from ${bucket}`
-      );
-    }
-
-    return data.publicUrl;
+    return publicUrl as string;
   };
 
   const uploadCourseAssets = async () => {
@@ -161,6 +166,24 @@ export default function CreateCoursePage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setDuration("");
+    setPrice("");
+    setCurrency("PI");
+    setIsFree(false);
+    setImageFile(null);
+    setVideoFile(null);
+    setAttachmentFile(null);
+
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+
+    setImagePreview("");
+    setVideoPreview("");
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -234,22 +257,7 @@ export default function CreateCoursePage() {
       }
 
       setStatus(lang === "ar" ? "تم نشر الدورة بنجاح" : "Course published successfully");
-
-      setTitle("");
-      setDescription("");
-      setDuration("");
-      setPrice("");
-      setCurrency("PI");
-      setIsFree(false);
-      setImageFile(null);
-      setVideoFile(null);
-      setAttachmentFile(null);
-
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
-      if (videoPreview) URL.revokeObjectURL(videoPreview);
-
-      setImagePreview("");
-      setVideoPreview("");
+      resetForm();
 
       setTimeout(() => {
         router.push("/my-courses");
@@ -406,7 +414,13 @@ export default function CreateCoursePage() {
                 <input
                   type="checkbox"
                   checked={isFree}
-                  onChange={(e) => setIsFree(e.target.checked)}
+                  onChange={(e) => {
+                    setIsFree(e.target.checked);
+                    if (e.target.checked) {
+                      setPrice("");
+                    }
+                    setStatus("");
+                  }}
                 />
                 {lang === "ar" ? "دورة مجانية" : "This course is free"}
               </label>
@@ -459,6 +473,7 @@ export default function CreateCoursePage() {
                 accept="image/*"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
+
                   if (!file) {
                     setImageFile(null);
                     if (imagePreview) URL.revokeObjectURL(imagePreview);
@@ -506,6 +521,7 @@ export default function CreateCoursePage() {
                 accept="video/*"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
+
                   if (!file) {
                     setVideoFile(null);
                     if (videoPreview) URL.revokeObjectURL(videoPreview);
@@ -553,6 +569,7 @@ export default function CreateCoursePage() {
                 accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.rar,.txt,.xlsx,.xls"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
+
                   if (!file) {
                     setAttachmentFile(null);
                     return;
