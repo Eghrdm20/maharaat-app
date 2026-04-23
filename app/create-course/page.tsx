@@ -12,6 +12,10 @@ type CachedPiUser = {
   username: string;
 };
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
 export default function CreateCoursePage() {
   const router = useRouter();
 
@@ -20,15 +24,21 @@ export default function CreateCoursePage() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [instructorName, setInstructorName] = useState("");
   const [duration, setDuration] = useState("");
   const [price, setPrice] = useState("");
+  const [currency, setCurrency] = useState("PI");
   const [isFree, setIsFree] = useState(false);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [courseFile, setCourseFile] = useState<File | null>(null);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+
+  const [imagePreview, setImagePreview] = useState("");
+  const [videoPreview, setVideoPreview] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("");
 
   const t = translations[lang];
@@ -47,38 +57,110 @@ export default function CreateCoursePage() {
       const parsed = JSON.parse(cachedUser);
       if (parsed?.uid && parsed?.username) {
         setPiUser(parsed);
+        setInstructorName(parsed.username);
       }
     } catch (error) {
       console.error("Failed to parse pi_user", error);
     }
   }, []);
 
-  const changeLanguage = (nextLang: Lang) => {
-    setLang(nextLang);
-    window.localStorage.setItem("app_lang", nextLang);
-    document.documentElement.lang = nextLang;
-    document.documentElement.dir = getDirection(nextLang);
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      if (videoPreview) URL.revokeObjectURL(videoPreview);
+    };
+  }, [imagePreview, videoPreview]);
+
+  const validateSelectedFile = (
+    file: File,
+    type: "image" | "video" | "file"
+  ): string | null => {
+    if (type === "image" && file.size > MAX_IMAGE_SIZE) {
+      return lang === "ar"
+        ? "حجم صورة الدورة كبير جدًا. الحد الأقصى 5MB"
+        : "Image is too large. Max size is 5MB";
+    }
+
+    if (type === "video" && file.size > MAX_VIDEO_SIZE) {
+      return lang === "ar"
+        ? "حجم فيديو الدورة كبير جدًا. الحد الأقصى 200MB"
+        : "Video is too large. Max size is 200MB";
+    }
+
+    if (type === "file" && file.size > MAX_FILE_SIZE) {
+      return lang === "ar"
+        ? "حجم ملف الدورة كبير جدًا. الحد الأقصى 100MB"
+        : "Attachment is too large. Max size is 100MB";
+    }
+
+    return null;
   };
 
-  const uploadToBucket = async (bucket: string, file: File) => {
+  const uploadToBucket = async (bucket: string, folder: string, file: File) => {
     const supabase = createSupabaseClient();
 
     const ext = file.name.split(".").pop() || "bin";
-    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const path = `${piUser?.uid || "guest"}/${safeName}`;
+    const fileName = `${folder}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${ext}`;
+    const filePath = `${folder}/${fileName}`;
 
-    const { error } = await supabase.storage.from(bucket).upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: file.type || undefined,
-    });
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type || undefined,
+      });
 
-    if (error) {
-      throw new Error(error.message);
+    if (uploadError) {
+      throw new Error(`${bucket}: ${uploadError.message}`);
     }
 
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+
+    if (!data?.publicUrl) {
+      throw new Error(
+        lang === "ar"
+          ? `تعذر إنشاء رابط الملف من ${bucket}`
+          : `Could not create public URL from ${bucket}`
+      );
+    }
+
     return data.publicUrl;
+  };
+
+  const uploadCourseAssets = async () => {
+    setUploading(true);
+
+    try {
+      let imageUrl: string | null = null;
+      let videoUrl: string | null = null;
+      let fileUrl: string | null = null;
+
+      if (imageFile) {
+        setStatus(lang === "ar" ? "جاري رفع صورة الدورة..." : "Uploading course image...");
+        imageUrl = await uploadToBucket("course-images", "images", imageFile);
+      }
+
+      if (videoFile) {
+        setStatus(lang === "ar" ? "جاري رفع فيديو الدورة..." : "Uploading course video...");
+        videoUrl = await uploadToBucket("course-videos", "videos", videoFile);
+      }
+
+      if (attachmentFile) {
+        setStatus(lang === "ar" ? "جاري رفع ملف الدورة..." : "Uploading course file...");
+        fileUrl = await uploadToBucket("course-files", "files", attachmentFile);
+      }
+
+      return {
+        image_url: imageUrl,
+        video_url: videoUrl,
+        file_url: fileUrl,
+      };
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -89,38 +171,35 @@ export default function CreateCoursePage() {
       return;
     }
 
-    if (!title.trim() || !description.trim() || !duration.trim()) {
-      setStatus(t.fillRequiredFields);
+    if (!title.trim()) {
+      setStatus(lang === "ar" ? "أدخل عنوان الدورة" : "Enter course title");
+      return;
+    }
+
+    if (!description.trim()) {
+      setStatus(lang === "ar" ? "أدخل وصف الدورة" : "Enter course description");
       return;
     }
 
     if (!isFree) {
       const numericPrice = Number(price);
-      if (!numericPrice || numericPrice <= 0) {
-        setStatus(t.invalidPrice);
+      if (!price.trim() || !Number.isFinite(numericPrice) || numericPrice <= 0) {
+        setStatus(
+          lang === "ar"
+            ? "أدخل سعرًا صحيحًا للدورة المدفوعة"
+            : "Valid price is required for paid courses"
+        );
         return;
       }
     }
 
     try {
       setLoading(true);
-      setStatus(t.publishingCourse);
+      setStatus(lang === "ar" ? "جاري تجهيز الدورة..." : "Preparing course...");
 
-      let imageUrl: string | null = null;
-      let videoUrl: string | null = null;
-      let fileUrl: string | null = null;
+      const uploadedAssets = await uploadCourseAssets();
 
-      if (imageFile) {
-        imageUrl = await uploadToBucket("course-images", imageFile);
-      }
-
-      if (videoFile) {
-        videoUrl = await uploadToBucket("course-videos", videoFile);
-      }
-
-      if (courseFile) {
-        fileUrl = await uploadToBucket("course-files", courseFile);
-      }
+      setStatus(lang === "ar" ? "جاري حفظ الدورة..." : "Saving course...");
 
       const res = await fetch("/api/courses", {
         method: "POST",
@@ -130,623 +209,410 @@ export default function CreateCoursePage() {
         body: JSON.stringify({
           uid: piUser.uid,
           username: piUser.username,
-          title,
-          description,
-          duration,
-          price,
-          isFree,
-          imageUrl,
-          videoUrl,
-          fileUrl,
+          owner_pi_uid: piUser.uid,
+          title: title.trim(),
+          description: description.trim(),
+          instructor_name: instructorName.trim() || piUser.username,
+          duration: duration.trim() || null,
+          price: isFree ? 0 : Number(price),
+          currency,
+          is_free: isFree,
+          image_url: uploadedAssets.image_url,
+          video_url: uploadedAssets.video_url,
+          file_url: uploadedAssets.file_url,
+          content_type: "media",
         }),
       });
 
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(json?.error || t.courseCreatedFailed);
+        throw new Error(
+          json?.error ||
+            (lang === "ar" ? "فشل إنشاء الدورة" : "Failed to create course")
+        );
       }
 
-      setStatus(t.courseCreatedSuccess);
+      setStatus(lang === "ar" ? "تم نشر الدورة بنجاح" : "Course published successfully");
+
+      setTitle("");
+      setDescription("");
+      setDuration("");
+      setPrice("");
+      setCurrency("PI");
+      setIsFree(false);
+      setImageFile(null);
+      setVideoFile(null);
+      setAttachmentFile(null);
+
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      if (videoPreview) URL.revokeObjectURL(videoPreview);
+
+      setImagePreview("");
+      setVideoPreview("");
 
       setTimeout(() => {
-        router.push("/");
+        router.push("/my-courses");
       }, 1200);
     } catch (error: any) {
       console.error(error);
-      setStatus(error?.message || t.courseCreatedFailed);
+      setStatus(
+        error?.message ||
+          (lang === "ar" ? "فشل إنشاء الدورة" : "Failed to create course")
+      );
     } finally {
       setLoading(false);
+      setUploading(false);
     }
   };
 
-  // ====== 🎨 الأنماط المحسنة باستخدام CSS Variables ======
-  
   const pageStyle: CSSProperties = {
     minHeight: "100vh",
-    paddingBottom: 96,
+    paddingBottom: 100,
     background: "var(--bg-primary)",
     fontFamily: "var(--font-tajawal), sans-serif",
   };
 
   const containerStyle: CSSProperties = {
-    maxWidth: 600,
+    maxWidth: 760,
     margin: "0 auto",
-    padding: "24px 20px",
-    animation: "fadeInUp 0.6s ease-out",
+    padding: "20px",
   };
 
-  const headerRowStyle: CSSProperties = {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 16,
-    marginBottom: 28,
-  };
-
-  const backLinkStyle: CSSProperties = {
-    color: "var(--text-secondary)",
-    textDecoration: "none",
-    fontSize: 15,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
-    padding: "8px 12px",
-    borderRadius: "12px",
-    transition: "all 0.3s ease",
-    background: "transparent",
-    fontWeight: 600,
-  };
-
-  const titleStyle: CSSProperties = {
-    fontSize: 36,
-    fontWeight: 800,
-    margin: "0 0 10px",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    backgroundClip: "text",
-    lineHeight: 1.3,
-  };
-
-  const subtitleStyle: CSSProperties = {
-    color: "var(--text-secondary)",
-    lineHeight: 1.8,
-    margin: 0,
-    fontSize: 16,
-  };
-
-  const languageWrapStyle: CSSProperties = {
-    display: "flex",
-    gap: 10,
-    flexShrink: 0,
-  };
-
-  function langButtonStyle(active: boolean): CSSProperties {
-    return {
-      border: active ? "2px solid transparent" : "2px solid var(--border-color)",
-      background: active 
-        ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
-        : "var(--bg-card)",
-      color: active ? "white" : "var(--text-primary)",
-      borderRadius: "14px",
-      padding: "12px 16px",
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: "pointer",
-      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-      boxShadow: active ? "0 8px 24px rgba(102, 126, 234, 0.35)" : "var(--shadow-sm)",
-      transform: active ? "translateY(-2px)" : "translateY(0)",
-    };
-  }
-
-  const infoBoxStyle: CSSProperties = {
-    background: "linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)",
-    border: "2px solid rgba(102, 126, 234, 0.2)",
-    borderRadius: "24px",
-    padding: "24px",
-    color: "var(--text-secondary)",
-    lineHeight: 1.9,
-    fontSize: 15,
-    boxShadow: "var(--shadow-md)",
-    backdropFilter: "blur(10px)",
-  };
-
-  const formStyle: CSSProperties = {
+  const cardStyle: CSSProperties = {
     background: "var(--bg-card)",
-    border: "1px solid var(--border-color)",
-    borderRadius: "28px",
-    padding: "28px 24px",
-    display: "grid",
-    gap: 18,
-    boxShadow: "var(--shadow-lg)",
-    animation: "fadeInUp 0.6s ease-out 0.2s backwards",
-  };
-
-  const mutedTextStyle: CSSProperties = {
-    color: "var(--text-muted)",
-    fontSize: 14,
-    fontWeight: 500,
-    padding: "12px 16px",
-    background: "rgba(17, 153, 142, 0.08)",
-    borderRadius: "14px",
-    borderRight: "4px solid #11998e",
+    borderRadius: 24,
+    padding: 20,
+    boxShadow: "var(--shadow-md)",
   };
 
   const inputStyle: CSSProperties = {
     width: "100%",
-    border: "2px solid var(--border-color)",
-    borderRadius: "16px",
-    padding: "16px 18px",
-    fontSize: 15,
+    padding: "14px 16px",
+    borderRadius: 16,
+    border: "1px solid var(--border-color)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)",
+    fontSize: 16,
     outline: "none",
-    background: "var(--bg-card)",
-    color: "var(--text-primary)",
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    boxShadow: "var(--shadow-xs)",
-    fontWeight: 500,
   };
 
-  const fieldBoxStyle: CSSProperties = {
-    border: "2px solid var(--border-color)",
-    borderRadius: "16px",
-    padding: "18px",
-    background: "var(--bg-card)",
-    transition: "all 0.3s ease",
-    cursor: "pointer",
-    boxShadow: "var(--shadow-xs)",
-  };
-
-  const fieldLabelStyle: CSSProperties = {
-    fontSize: 15,
-    fontWeight: 700,
-    marginBottom: 10,
-    color: "var(--text-primary)",
+  const labelStyle: CSSProperties = {
     display: "block",
-  };
-
-  const checkboxRowStyle: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
+    marginBottom: 8,
+    fontWeight: 700,
     fontSize: 15,
     color: "var(--text-primary)",
-    padding: "16px",
-    background: "var(--bg-hover)",
-    borderRadius: "14px",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-    fontWeight: 600,
   };
 
-  const primaryButtonStyle: CSSProperties = {
-    border: "none",
-    color: "white",
-    borderRadius: "18px",
-    padding: "18px 24px",
-    fontSize: 17,
-    fontWeight: 800,
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    boxShadow: "0 12px 32px rgba(102, 126, 234, 0.4)",
-    cursor: "pointer",
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    letterSpacing: "0.5px",
-    textTransform: "uppercase",
-    position: "relative",
-    overflow: "hidden",
-  };
-
-  const statusTextStyle: CSSProperties = {
-    color: "var(--text-secondary)",
-    lineHeight: 1.8,
-    fontSize: 14,
-    padding: "14px 18px",
-    background: "var(--bg-hover)",
-    borderRadius: "14px",
-    textAlign: "center",
-    fontWeight: 500,
-  };
-
-  const navStyle: CSSProperties = {
-    position: "fixed",
-    bottom: 0,
-    left: "50%",
-    transform: "translateX(-50%)",
+  const buttonStyle: CSSProperties = {
     width: "100%",
-    maxWidth: 600,
-    background: "rgba(255, 255, 255, 0.95)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
-    borderTop: "1px solid var(--border-color)",
-    padding: "12px 16px",
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 10,
-    boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.1)",
-    zIndex: 100,
+    padding: "16px",
+    borderRadius: 18,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 18,
+    fontWeight: 800,
+    color: "#fff",
+    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
   };
-
-  function navItemStyle(active: boolean): CSSProperties {
-    return {
-      textDecoration: "none",
-      textAlign: "center",
-      background: active 
-        ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
-        : "transparent",
-      color: active ? "white" : "var(--text-secondary)",
-      padding: "14px 10px",
-      borderRadius: "18px",
-      fontSize: 13,
-      fontWeight: active ? 800 : 600,
-      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-      boxShadow: active ? "0 8px 24px rgba(102, 126, 234, 0.35)" : "none",
-      transform: active ? "translateY(-2px)" : "translateY(0)",
-      position: "relative",
-    };
-  }
 
   return (
-    <main style={{ ...pageStyle, direction: dir }}>
-      {/* ✨ خلفية زخرفية */}
-      <div style={{
-        position: "fixed",
-        top: -200,
-        right: -200,
-        width: 400,
-        height: 400,
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        opacity: 0.03,
-        borderRadius: "50%",
-        pointerEvents: "none",
-        zIndex: 0,
-      }} />
-      
-      <div style={{
-        position: "fixed",
-        bottom: -150,
-        left: -150,
-        width: 300,
-        height: 300,
-        background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-        opacity: 0.03,
-        borderRadius: "50%",
-        pointerEvents: "none",
-        zIndex: 0,
-      }} />
-
-      <div style={{ ...containerStyle, position: "relative", zIndex: 1 }}>
-        <div style={headerRowStyle}>
-          <div>
-            <Link 
-              href="/profile" 
-              style={backLinkStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-                e.currentTarget.style.transform = "translateX(-4px)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.transform = "translateX(0)";
-              }}
-            >
-              ← {t.back}
-            </Link>
-
-            <h1 style={titleStyle}>
-              <span style={{ marginRight: 10 }}>🎓</span>
-              {t.createCourseTitle}
-            </h1>
-            <p style={subtitleStyle}>{t.createCourseSubtitle}</p>
-          </div>
-
-          <div style={languageWrapStyle}>
-            <button
-              onClick={() => changeLanguage("ar")}
-              style={langButtonStyle(lang === "ar")}
-              type="button"
-            >
-              العربية
-            </button>
-            <button
-              onClick={() => changeLanguage("en")}
-              style={langButtonStyle(lang === "en")}
-              type="button"
-            >
-              English
-            </button>
-          </div>
+    <main style={pageStyle} dir={dir}>
+      <div style={containerStyle}>
+        <div style={{ marginBottom: 18 }}>
+          <Link
+            href="/profile"
+            style={{
+              textDecoration: "none",
+              color: "var(--text-secondary)",
+              fontWeight: 700,
+            }}
+          >
+            {lang === "ar" ? "← العودة إلى الملف الشخصي" : "← Back to Profile"}
+          </Link>
         </div>
 
-        {!piUser ? (
-          <div style={infoBoxStyle}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>⚠️</div>
-            {t.mustConnectPiFirst}
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} style={formStyle}>
-            <div style={mutedTextStyle}>
-              👤 {t.username}:{" "}
-              <strong style={{ color: "#11998e" }}>{piUser.username}</strong>
+        <div style={cardStyle}>
+          <h1 style={{ fontSize: 30, fontWeight: 900, marginBottom: 8 }}>
+            {lang === "ar" ? "إنشاء دورة جديدة" : "Create New Course"}
+          </h1>
+
+          <p style={{ color: "var(--text-secondary)", marginBottom: 20 }}>
+            {lang === "ar"
+              ? "ارفع صورة وفيديو وملف للدورة"
+              : "Upload image, video, and file for the course"}
+          </p>
+
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>
+                {lang === "ar" ? "عنوان الدورة" : "Course Title"}
+              </label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                style={inputStyle}
+                placeholder={lang === "ar" ? "اكتب عنوان الدورة" : "Enter course title"}
+              />
             </div>
 
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={`✏️ ${t.courseTitle}`}
-              style={inputStyle}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "#667eea";
-                e.currentTarget.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-color)";
-                e.currentTarget.style.boxShadow = "var(--shadow-xs)";
-              }}
-            />
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>
+                {lang === "ar" ? "اسم المدرب" : "Instructor Name"}
+              </label>
+              <input
+                value={instructorName}
+                onChange={(e) => setInstructorName(e.target.value)}
+                style={inputStyle}
+                placeholder={lang === "ar" ? "اسم المدرب" : "Instructor name"}
+              />
+            </div>
 
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={`📝 ${t.courseDescription}`}
-              rows={5}
-              style={{ ...inputStyle, resize: "vertical", minHeight: 130 }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "#667eea";
-                e.currentTarget.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-color)";
-                e.currentTarget.style.boxShadow = "var(--shadow-xs)";
-              }}
-            />
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>
+                {lang === "ar" ? "وصف الدورة" : "Course Description"}
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                style={{ ...inputStyle, minHeight: 140, resize: "vertical" }}
+                placeholder={lang === "ar" ? "اكتب وصف الدورة..." : "Write course description..."}
+              />
+            </div>
 
-            <input
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder={`⏱️ ${t.duration}`}
-              style={inputStyle}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "#667eea";
-                e.currentTarget.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-color)";
-                e.currentTarget.style.boxShadow = "var(--shadow-xs)";
-              }}
-            />
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>
+                {lang === "ar" ? "مدة الدورة" : "Course Duration"}
+              </label>
+              <input
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                style={inputStyle}
+                placeholder={lang === "ar" ? "مثال: 3 ساعات" : "Example: 3 hours"}
+              />
+            </div>
 
-            <div 
-              style={fieldBoxStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#667eea";
-                e.currentTarget.style.boxShadow = "var(--shadow-md)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-color)";
-                e.currentTarget.style.boxShadow = "var(--shadow-xs)";
-              }}
-            >
-              <div style={fieldLabelStyle}>🖼️ {t.imageUrl}</div>
+            <div style={{ marginBottom: 16 }}>
+              <label
+                style={{
+                  ...labelStyle,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isFree}
+                  onChange={(e) => setIsFree(e.target.checked)}
+                />
+                {lang === "ar" ? "دورة مجانية" : "This course is free"}
+              </label>
+            </div>
+
+            {!isFree ? (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 120px",
+                  gap: 12,
+                  marginBottom: 16,
+                }}
+              >
+                <div>
+                  <label style={labelStyle}>
+                    {lang === "ar" ? "سعر الدورة" : "Course Price"}
+                  </label>
+                  <input
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    style={inputStyle}
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle}>
+                    {lang === "ar" ? "العملة" : "Currency"}
+                  </label>
+                  <input
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    style={inputStyle}
+                    placeholder="PI"
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>
+                {lang === "ar" ? "صورة الدورة" : "Course Image"}
+              </label>
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                style={{ marginTop: 8 }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (!file) {
+                    setImageFile(null);
+                    if (imagePreview) URL.revokeObjectURL(imagePreview);
+                    setImagePreview("");
+                    return;
+                  }
+
+                  const fileError = validateSelectedFile(file, "image");
+                  if (fileError) {
+                    setStatus(fileError);
+                    return;
+                  }
+
+                  setImageFile(file);
+
+                  if (imagePreview) URL.revokeObjectURL(imagePreview);
+                  setImagePreview(URL.createObjectURL(file));
+                  setStatus("");
+                }}
+                style={inputStyle}
               />
+
+              {imagePreview ? (
+                <div style={{ marginTop: 12 }}>
+                  <img
+                    src={imagePreview}
+                    alt="preview"
+                    style={{
+                      width: "100%",
+                      maxHeight: 220,
+                      objectFit: "cover",
+                      borderRadius: 16,
+                    }}
+                  />
+                </div>
+              ) : null}
             </div>
 
-            <div 
-              style={fieldBoxStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#f5576c";
-                e.currentTarget.style.boxShadow = "var(--shadow-md)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-color)";
-                e.currentTarget.style.boxShadow = "var(--shadow-xs)";
-              }}
-            >
-              <div style={fieldLabelStyle}>🎬 {t.videoUrl}</div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>
+                {lang === "ar" ? "فيديو الدورة" : "Course Video"}
+              </label>
               <input
                 type="file"
                 accept="video/*"
-                onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                style={{ marginTop: 8 }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (!file) {
+                    setVideoFile(null);
+                    if (videoPreview) URL.revokeObjectURL(videoPreview);
+                    setVideoPreview("");
+                    return;
+                  }
+
+                  const fileError = validateSelectedFile(file, "video");
+                  if (fileError) {
+                    setStatus(fileError);
+                    return;
+                  }
+
+                  setVideoFile(file);
+
+                  if (videoPreview) URL.revokeObjectURL(videoPreview);
+                  setVideoPreview(URL.createObjectURL(file));
+                  setStatus("");
+                }}
+                style={inputStyle}
               />
+
+              {videoPreview ? (
+                <div style={{ marginTop: 12 }}>
+                  <video
+                    src={videoPreview}
+                    controls
+                    style={{
+                      width: "100%",
+                      maxHeight: 260,
+                      borderRadius: 16,
+                      background: "#000",
+                    }}
+                  />
+                </div>
+              ) : null}
             </div>
 
-            <div 
-              style={fieldBoxStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#f2994a";
-                e.currentTarget.style.boxShadow = "var(--shadow-md)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-color)";
-                e.currentTarget.style.boxShadow = "var(--shadow-xs)";
-              }}
-            >
-              <div style={fieldLabelStyle}>📁 {t.fileUrl}</div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>
+                {lang === "ar" ? "ملف مرفق للدورة" : "Course Attachment"}
+              </label>
               <input
                 type="file"
-                accept=".pdf,.zip,.doc,.docx,.ppt,.pptx"
-                onChange={(e) => setCourseFile(e.target.files?.[0] || null)}
-                style={{ marginTop: 8 }}
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.rar,.txt,.xlsx,.xls"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (!file) {
+                    setAttachmentFile(null);
+                    return;
+                  }
+
+                  const fileError = validateSelectedFile(file, "file");
+                  if (fileError) {
+                    setStatus(fileError);
+                    return;
+                  }
+
+                  setAttachmentFile(file);
+                  setStatus("");
+                }}
+                style={inputStyle}
               />
+
+              {attachmentFile ? (
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    background: "rgba(102, 126, 234, 0.08)",
+                    color: "var(--text-primary)",
+                    fontWeight: 700,
+                  }}
+                >
+                  {lang === "ar" ? "تم اختيار الملف:" : "Selected file:"} {attachmentFile.name}
+                </div>
+              ) : null}
             </div>
 
-            <label 
-              style={checkboxRowStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(102, 126, 234, 0.08)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isFree}
-                onChange={(e) => setIsFree(e.target.checked)}
-                style={{ 
-                  width: 20, 
-                  height: 20, 
-                  accentColor: "#667eea",
-                  cursor: "pointer",
-                }}
-              />
-              <span>💰 {t.isFreeCourse}</span>
-            </label>
-
-            {!isFree ? (
-              <input
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder={`💵 ${t.coursePrice} (π)`}
-                type="number"
-                step="0.01"
-                min="0"
-                style={inputStyle}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "#11998e";
-                  e.currentTarget.style.boxShadow = "0 0 0 4px rgba(17, 153, 142, 0.1)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "var(--border-color)";
-                  e.currentTarget.style.boxShadow = "var(--shadow-xs)";
-                }}
-              />
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                ...primaryButtonStyle,
-                background: loading 
-                  ? "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)" 
-                  : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.7 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!loading) {
-                  e.currentTarget.style.transform = "translateY(-3px)";
-                  e.currentTarget.style.boxShadow = "0 16px 40px rgba(102, 126, 234, 0.5)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 12px 32px rgba(102, 126, 234, 0.4)";
-              }}
-            >
-              {loading ? "⏳ " + t.publishingCourse : "🚀 " + t.publishCourse}
+            <button type="submit" disabled={loading || uploading} style={buttonStyle}>
+              {loading || uploading
+                ? lang === "ar"
+                  ? "جاري رفع الدورة..."
+                  : "Uploading course..."
+                : lang === "ar"
+                ? "نشر الدورة 🚀"
+                : "Publish Course 🚀"}
             </button>
 
             {status ? (
-              <div style={{
-                ...statusTextStyle,
-                background: status.includes("نجاح") || status.includes("success")
-                  ? "rgba(17, 153, 142, 0.1)"
-                  : status.includes("خطأ") || status.includes("Error")
-                    ? "rgba(245, 87, 108, 0.1)"
-                    : "var(--bg-hover)",
-                color: status.includes("نجاح") || status.includes("success")
-                  ? "#11998e"
-                  : status.includes("خطأ") || status.includes("Error")
-                    ? "#f5576c"
-                    : "var(--text-secondary)",
-                borderRight: status.includes("نجاح") || status.includes("success")
-                  ? "4px solid #11998e"
-                  : status.includes("خطأ") || status.includes("Error")
-                    ? "4px solid #f5576c"
-                    : "4px solid var(--border-color)",
-              }}>
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: "14px 16px",
+                  borderRadius: 16,
+                  background: "rgba(102, 126, 234, 0.10)",
+                  color: "var(--text-primary)",
+                  fontWeight: 700,
+                }}
+              >
                 {status}
               </div>
             ) : null}
           </form>
-        )}
+        </div>
       </div>
-
-      <nav style={navStyle}>
-        <Link 
-          href="/profile" 
-          style={navItemStyle(false)}
-          onMouseEnter={(e) => {
-            if (!e.currentTarget.style.background.includes("gradient")) {
-              e.currentTarget.style.background = "var(--bg-hover)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!e.currentTarget.style.background.includes("gradient")) {
-              e.currentTarget.style.background = "transparent";
-            }
-          }}
-        >
-          <div style={{ fontSize: 20, marginBottom: 4 }}>👤</div>
-          {t.profile}
-        </Link>
-
-        <Link 
-          href="/create-course" 
-          style={navItemStyle(true)}
-        >
-          <div style={{ fontSize: 20, marginBottom: 4 }}>➕</div>
-          {t.createCourse}
-        </Link>
-
-        <Link 
-          href="/" 
-          style={navItemStyle(false)}
-          onMouseEnter={(e) => {
-            if (!e.currentTarget.style.background.includes("gradient")) {
-              e.currentTarget.style.background = "var(--bg-hover)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!e.currentTarget.style.background.includes("gradient")) {
-              e.currentTarget.style.background = "transparent";
-            }
-          }}
-        >
-          <div style={{ fontSize: 20, marginBottom: 4 }}>🏠</div>
-          {t.home}
-        </Link>
-      </nav>
-
-      {/* 🎨 أنماط CSS للـ Animations */}
-      <style jsx global>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        /* تحسين مظهر file inputs */
-        input[type="file"]::file-selector-button {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 10px;
-          font-weight: 600;
-          cursor: pointer;
-          margin-left: 12px;
-          transition: all 0.3s ease;
-        }
-        
-        input[type="file"]::file-selector-button:hover {
-          transform: scale(1.05);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-      `}</style>
     </main>
   );
 }
