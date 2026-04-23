@@ -526,3 +526,17 @@ export default function ProfilePage() {
     </main>
   );
 }
+
+<MenuCard
+  href="/courses"
+  title={lang === "ar" ? "الدورات" : "Courses"}
+  subtitle={lang === "ar" ? "كل الدورات المرئية والملفات" : "All media courses"}
+  icon="🎓"
+/>
+
+<MenuCard
+  href="/written-courses"
+  title={lang === "ar" ? "الدورات المكتوبة" : "Written Courses"}
+  subtitle={lang === "ar" ? "الدورات النصية داخل الصفحة" : "Article courses"}
+  icon="✍️"
+/>
