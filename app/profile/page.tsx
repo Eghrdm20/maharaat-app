@@ -1,255 +1,510 @@
-"use client";
+'use client';
 
-import type { CSSProperties } from "react";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { getDirection, type Lang } from "@/lib/i18n";
-
-type CachedPiUser = {
-  uid: string;
-  username: string;
-};
+import { useState } from 'react';
 
 export default function ProfilePage() {
-  const [lang, setLang] = useState<Lang>("ar");
-  const [piUser, setPiUser] = useState<CachedPiUser | null>(null);
+  const [piConnected, setPiConnected] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
-  const dir = useMemo(() => getDirection(lang), [lang]);
-
-  useEffect(() => {
-    const savedLang = (window.localStorage.getItem("app_lang") as Lang) || "ar";
-    setLang(savedLang);
-    document.documentElement.lang = savedLang;
-    document.documentElement.dir = getDirection(savedLang);
-
-    const cachedUser = window.localStorage.getItem("pi_user");
-    if (!cachedUser) return;
-
-    try {
-      const parsed = JSON.parse(cachedUser);
-      if (parsed?.uid && parsed?.username) {
-        setPiUser(parsed);
-      }
-    } catch (error) {
-      console.error("Failed to parse pi_user", error);
+  const handlePiConnection = () => {
+    if (piConnected) {
+      setPiConnected(false);
+      return;
     }
-  }, []);
-
-  const handleLogout = () => {
-    window.localStorage.removeItem("pi_user");
-    setPiUser(null);
+    
+    setConnecting(true);
+    setTimeout(() => {
+      setPiConnected(true);
+      setConnecting(false);
+    }, 2000);
   };
-
-  const text = {
-    ar: {
-      title: "الملف الشخصي",
-      piTitle: "ربط حساب Pi",
-      connected: "الحالة: تم استرجاع الحساب المحفوظ",
-      notConnected: "الحالة: لم يتم ربط حساب Pi بعد",
-      username: "اسم مستخدم Pi",
-      logout: "تسجيل الخروج",
-      myCourses: "دوراتي",
-      browseCourses: "استكشاف الدورات",
-      createCourse: "أنشئ دورة",
-      createWrittenCourse: "إنشاء دورة مكتوبة",
-      visitorDashboard: "لوحة الزوار",
-      addNews: "إضافة الأخبار",
-      home: "الرئيسية",
-      profile: "الملف الشخصي",
-    },
-    en: {
-      title: "Profile",
-      piTitle: "Pi Account",
-      connected: "Status: Restored saved account",
-      notConnected: "Status: Pi account not connected yet",
-      username: "Pi Username",
-      logout: "Log out",
-      myCourses: "My Courses",
-      browseCourses: "Browse Courses",
-      createCourse: "Create Course",
-      createWrittenCourse: "Create Written Course",
-      visitorDashboard: "Visitor Dashboard",
-      addNews: "Add News",
-      home: "Home",
-      profile: "Profile",
-    },
-  }[lang];
-
-  const pageStyle: CSSProperties = {
-    minHeight: "100vh",
-    paddingBottom: 110,
-    background: "var(--bg-primary)",
-    fontFamily: "var(--font-tajawal), sans-serif",
-  };
-
-  const containerStyle: CSSProperties = {
-    maxWidth: 720,
-    margin: "0 auto",
-    padding: "20px 16px",
-  };
-
-  const titleStyle: CSSProperties = {
-    fontSize: 34,
-    fontWeight: 900,
-    color: "var(--text-primary)",
-    marginBottom: 20,
-    textAlign: "right",
-  };
-
-  const sectionStyle: CSSProperties = {
-    background: "var(--bg-card)",
-    borderRadius: 28,
-    padding: 20,
-    boxShadow: "var(--shadow-md)",
-    marginBottom: 18,
-    border: "1px solid var(--border-color)",
-  };
-
-  const cardTitleStyle: CSSProperties = {
-    fontSize: 26,
-    fontWeight: 900,
-    color: "#0f172a",
-    marginBottom: 18,
-  };
-
-  const statusBoxStyle: CSSProperties = {
-    background: "rgba(16, 185, 129, 0.12)",
-    border: "1px solid rgba(16, 185, 129, 0.22)",
-    color: "#065f46",
-    borderRadius: 22,
-    padding: "18px 16px",
-    marginBottom: 18,
-    lineHeight: 1.9,
-    fontSize: 16,
-  };
-
-  const ghostButtonStyle: CSSProperties = {
-    width: "fit-content",
-    minWidth: 170,
-    padding: "18px 22px",
-    borderRadius: 22,
-    border: "1px solid #cbd5e1",
-    background: "#fff",
-    color: "#0f172a",
-    fontSize: 18,
-    fontWeight: 900,
-    cursor: "pointer",
-  };
-
-  const menuLinkStyle: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: 92,
-    padding: "0 24px",
-    borderRadius: 28,
-    background: "var(--bg-card)",
-    color: "var(--text-primary)",
-    textDecoration: "none",
-    fontSize: 22,
-    fontWeight: 900,
-    boxShadow: "var(--shadow-sm)",
-    marginBottom: 18,
-    border: "1px solid var(--border-color)",
-  };
-
-  const bottomNavStyle: CSSProperties = {
-    position: "fixed",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    background: "rgba(255,255,255,0.96)",
-    borderTop: "1px solid #e5e7eb",
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    padding: "12px 14px max(12px, env(safe-area-inset-bottom))",
-    gap: 10,
-    zIndex: 50,
-  };
-
-  const navItemStyle = (active: boolean): CSSProperties => ({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 64,
-    borderRadius: 22,
-    textDecoration: "none",
-    fontWeight: 900,
-    fontSize: 18,
-    background: active ? "#08122f" : "transparent",
-    color: active ? "#fff" : "#111827",
-  });
 
   return (
-    <main style={pageStyle} dir={dir}>
-      <div style={containerStyle}>
-        <h1 style={titleStyle}>{text.title}</h1>
-
-        <section style={sectionStyle}>
-          <div style={cardTitleStyle}>{text.piTitle}</div>
-
-          <div style={{ color: "var(--text-secondary)", fontSize: 18, marginBottom: 14 }}>
-            {piUser ? text.connected : text.notConnected}
-          </div>
-
-          {piUser ? (
-            <>
-              <div style={statusBoxStyle}>
-                <div>
-                  {text.username}: {piUser.username}
-                </div>
-                <div>UID: {piUser.uid}</div>
-              </div>
-
-              <button onClick={handleLogout} style={ghostButtonStyle}>
-                {text.logout}
-              </button>
-            </>
-          ) : (
-            <Link href="/profile" style={{ ...ghostButtonStyle, display: "inline-flex", textDecoration: "none", alignItems: "center", justifyContent: "center" }}>
-              ربط حساب Pi
-            </Link>
-          )}
-        </section>
-
-        <Link href="/my-courses" style={menuLinkStyle}>
-          <span>{text.myCourses}</span>
-        </Link>
-
-        <Link href="/" style={menuLinkStyle}>
-          <span>{text.browseCourses}</span>
-        </Link>
-
-        <Link href="/create-course" style={menuLinkStyle}>
-          <span>{text.createCourse}</span>
-        </Link>
-
-        <Link href="/create-written-course" style={menuLinkStyle}>
-          <span>{text.createWrittenCourse}</span>
-        </Link>
-
-        <Link href="/visitor-dashboard" style={menuLinkStyle}>
-          <span>{text.visitorDashboard}</span>
-        </Link>
-
-        <Link href="/create-news" style={menuLinkStyle}>
-          <span>{text.addNews}</span>
-        </Link>
+    <div style={{
+      fontFamily: "'Cairo', 'Tajawal', sans-serif",
+      backgroundColor: '#f8f9fa',
+      minHeight: '100vh',
+      paddingBottom: '100px',
+      direction: 'rtl'
+    }}>
+      
+      {/* Status Bar */}
+      <div style={{
+        background: '#ffffff',
+        padding: '8px 20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        fontSize: '14px',
+        fontWeight: '600',
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+      }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <span>📶</span>
+          <span>📡</span>
+          <span>🔋</span>
+        </div>
+        <div>12:00</div>
       </div>
 
-      <nav style={bottomNavStyle}>
-        <Link href="/" style={navItemStyle(false)}>
-          {text.home}
-        </Link>
+      {/* Header */}
+      <div style={{
+        background: '#ffffff',
+        padding: '20px',
+        textAlign: 'center',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+      }}>
+        <h1 style={{
+          fontSize: '32px',
+          fontWeight: 900,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          margin: '10px 0'
+        }}>
+          الملف الشخصي
+        </h1>
+      </div>
 
-        <Link href="/create-course" style={navItemStyle(false)}>
-          {text.createCourse}
-        </Link>
+      {/* Main Container */}
+      <div style={{ padding: '20px', maxWidth: '480px', margin: '0 auto' }}>
+        
+        {/* Profile Card */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '28px',
+          padding: '30px 25px',
+          marginBottom: '25px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '120px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            opacity: 0.1
+          }} />
+          
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+            marginBottom: '25px',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            {/* Avatar */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <div style={{
+                width: '90px',
+                height: '90px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '40px',
+                color: 'white',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.16)',
+                border: '4px solid white'
+              }}>
+                👤
+              </div>
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                width: '28px',
+                height: '28px',
+                background: '#00ff41',
+                borderRadius: '50%',
+                border: '3px solid white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                color: 'white'
+              }}>
+                ✓
+              </div>
+            </div>
 
-        <Link href="/profile" style={navItemStyle(true)}>
-          {text.profile}
-        </Link>
+            {/* User Info */}
+            <div style={{ flex: 1 }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '5px' }}>
+                مستخدم Maharaat
+              </h2>
+              <p style={{ fontSize: '14px', color: '#636e72', marginBottom: '8px' }}>
+                user@maharaat.app
+              </p>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                background: 'linear-gradient(135deg, rgba(0,255,65,0.1), rgba(0,217,255,0.1))',
+                borderRadius: '50px',
+                fontSize: '13px',
+                color: '#00ff41',
+                fontWeight: 600
+              }}>
+                <span style={{
+                  width: '8px',
+                  height: '8px',
+                  background: '#00ff41',
+                  borderRadius: '50%',
+                  animation: 'pulse 2s infinite'
+                }} />
+                متصل الآن
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '15px',
+            marginTop: '20px'
+          }}>
+            {[
+              { number: '12', label: 'دورة' },
+              { number: '48', label: 'ساعة تعلم' },
+              { number: '5', label: 'شهادة' }
+            ].map((stat, index) => (
+              <div key={index} style={{
+                textAlign: 'center',
+                padding: '15px 10px',
+                background: '#f8f9fa',
+                borderRadius: '20px',
+                transition: 'transform 0.3s ease'
+              }}>
+                <div style={{
+                  fontSize: '26px',
+                  fontWeight: 900,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  marginBottom: '5px'
+                }}>
+                  {stat.number}
+                </div>
+                <div style={{ fontSize: '12px', color: '#636e72', fontWeight: 600 }}>
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <style>{`
+            @keyframes pulse {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50% { opacity: 0.6; transform: scale(1.2); }
+            }
+          `}</style>
+        </div>
+
+        {/* Pi Account Section */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '28px',
+          padding: '25px',
+          marginBottom: '25px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: '-20px',
+            right: '-20px',
+            fontSize: '150px',
+            fontWeight: 900,
+            color: '#bc13fe',
+            opacity: 0.05
+          }}>
+            π
+          </div>
+
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '15px'
+          }}>
+            <div style={{
+              fontSize: '20px',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{
+                width: '36px',
+                height: '36px',
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '18px'
+              }}>π</span>
+              Pi Account
+            </div>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            background: piConnected 
+              ? 'linear-gradient(135deg, rgba(0,255,65,0.1), rgba(0,217,255,0.1))'
+              : 'linear-gradient(135deg, rgba(255,107,107,0.1), rgba(255,159,67,0.1))',
+            borderRadius: '12px',
+            fontSize: '14px',
+            color: piConnected ? '#00ff41' : '#ff6b6b',
+            fontWeight: 600,
+            marginBottom: '20px',
+            border: `1px dashed ${piConnected ? 'rgba(0,255,65,0.3)' : 'rgba(255,107,107,0.3)'}`
+          }}>
+            {piConnected ? '✅' : '⚠️'}
+            <span>{piConnected ? 'الحالة: حساب Pi متصل ✓' : 'الحالة: حساب Pi غير متصل بعد'}</span>
+          </div>
+
+          <button
+            onClick={handlePiConnection}
+            disabled={connecting}
+            style={{
+              width: '100%',
+              padding: '16px',
+              background: piConnected 
+                ? 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)'
+                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '20px',
+              fontSize: '16px',
+              fontWeight: 700,
+              cursor: connecting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              boxShadow: '0 4px 15px rgba(102,126,234,0.4)',
+              fontFamily: 'inherit',
+              opacity: connecting ? 0.7 : 1
+            }}
+          >
+            {connecting ? (
+              <>⏳ جاري الربط...</>
+            ) : piConnected ? (
+              <>🔗 فصل الحساب</>
+            ) : (
+              <>🔗 ربط حساب Pi</>
+            )}
+          </button>
+        </div>
+
+        {/* Menu Sections */}
+        {[
+          {
+            icon: '🎓',
+            title: 'دوراتي',
+            subtitle: 'إدارة ومتابعة دوراتك التعليمية',
+            color: 'rgba(102,126,234,0.15)',
+            iconColor: '#667eea'
+          },
+          {
+            icon: '🔍',
+            title: 'استكشف الدورات',
+            subtitle: 'اكتشف دورات جديدة ومثيرة',
+            color: 'rgba(0,217,255,0.15)',
+            iconColor: '#00d9ff'
+          }
+        ].map((item, index) => (
+          <div key={index} style={{
+            background: '#ffffff',
+            borderRadius: '28px',
+            padding: '20px',
+            marginBottom: '25px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '18px',
+              padding: '18px 15px',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: item.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '22px',
+                flexShrink: 0
+              }}>
+                {item.icon}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '3px' }}>
+                  {item.title}
+                </div>
+                <div style={{ fontSize: '13px', color: '#636e72' }}>
+                  {item.subtitle}
+                </div>
+              </div>
+              <span style={{ color: '#b2bec3', fontSize: '18px' }}>←</span>
+            </div>
+          </div>
+        ))}
+
+        {/* Settings Menu */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '28px',
+          padding: '20px',
+          marginBottom: '25px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)'
+        }}>
+          {[
+            { icon: '⚙️', title: 'الإعدادات', subtitle: 'تخصيص تجربتك', color: 'rgba(240,147,251,0.15)', iconColor: '#f5576c' },
+            { icon: '❓', title: 'المساعدة والدعم', subtitle: 'نحن هنا لمساعدتك', color: 'rgba(255,193,7,0.15)', iconColor: '#ffc107' },
+            { icon: '🚪', title: 'تسجيل الخروج', subtitle: 'خروج من الحساب', color: 'rgba(255,107,107,0.15)', iconColor: '#ff6b6b' }
+          ].map((item, index) => (
+            <div key={index} style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '18px',
+              padding: '18px 15px',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              marginBottom: index < 2 ? '8px' : '0'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: item.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '22px',
+                flexShrink: 0
+              }}>
+                {item.icon}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '3px' }}>
+                  {item.title}
+                </div>
+                <div style={{ fontSize: '13px', color: '#636e72' }}>
+                  {item.subtitle}
+                </div>
+              </div>
+              <span style={{ color: '#b2bec3', fontSize: '18px' }}>←</span>
+            </div>
+          ))}
+        </div>
+
+      </div>
+
+      {/* Browser Bar */}
+      <div style={{
+        position: 'fixed',
+        bottom: '85px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: '#ffffff',
+        padding: '12px 25px',
+        borderRadius: '50px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.16)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        zIndex: 998,
+        width: 'calc(100% - 40px)',
+        maxWidth: '450px'
+      }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '8px',
+          background: 'linear-gradient(135deg, #667eea, #764ba2, #f093fb, #f5576c)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontWeight: 'bold',
+          fontSize: '14px'
+        }}>M</div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#636e72' }}>
+          🔒 maharaat-app.vercel.app
+        </div>
+        <span style={{ color: '#636e72', fontSize: '20px', cursor: 'pointer' }}>🔄</span>
+      </div>
+
+      {/* Bottom Navigation */}
+      <nav style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: '#ffffff',
+        padding: '12px 20px 20px',
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.1)',
+        display: 'flex',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        zIndex: 999,
+        borderTopLeftRadius: '25px',
+        borderTopRightRadius: '25px'
+      }}>
+        {[
+          { icon: '🏠', label: 'الرئيسية', active: false },
+          { icon: '➕', label: 'إنشاء دورة', active: false },
+          { icon: '👤', label: 'الملف الشخصي', active: true }
+        ].map((item, index) => (
+          <a
+            key={index}
+            href="#"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '5px',
+              textDecoration: 'none',
+              color: item.active ? 'white' : '#b2bec3',
+              transition: 'all 0.3s ease',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              background: item.active ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
+              boxShadow: item.active ? '0 4px 15px rgba(102,126,234,0.4)' : 'none',
+              transform: item.active ? 'translateY(-5px)' : 'none'
+            }}
+          >
+            <span style={{ fontSize: '24px' }}>{item.icon}</span>
+            <span style={{ fontSize: '12px', fontWeight: 600 }}>{item.label}</span>
+          </a>
+        ))}
       </nav>
-    </main>
+
+    </div>
   );
 }
