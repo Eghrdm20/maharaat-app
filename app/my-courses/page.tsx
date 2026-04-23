@@ -1,382 +1,532 @@
-"use client"
+"use client";
 
-import type { CSSProperties } from "react"
-import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
-import { translations, type Lang, getDirection } from "@/lib/i18n"
+import type { CSSProperties } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { getDirection, type Lang } from "@/lib/i18n";
 
-type Course = {
-  id: number
-  title: string
-  description: string | null
-  instructor_name: string
-  price: number | string | null
-  currency: string | null
-  is_free: boolean
-  image_url: string | null
-  duration: string | null
-  purchase_created_at?: string
-}
+type CachedPiUser = {
+  uid: string;
+  username: string;
+};
 
-type PiUser = {
-  uid: string
-  username: string
-}
+type CourseItem = {
+  id: number;
+  title: string;
+  description: string | null;
+  instructor_name: string | null;
+  duration: string | null;
+  price: number | string | null;
+  currency: string | null;
+  is_free: boolean;
+  image_url: string | null;
+  video_url: string | null;
+  file_url: string | null;
+  students_count: number | null;
+  rating: number | null;
+  is_new: boolean | null;
+  created_at?: string | null;
+};
 
 export default function MyCoursesPage() {
-  const [lang, setLang] = useState<Lang>("ar")
-  const [piUser, setPiUser] = useState<PiUser | null>(null)
-  const [courses, setCourses] = useState<Course[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [lang, setLang] = useState<Lang>("ar");
+  const [piUser, setPiUser] = useState<CachedPiUser | null>(null);
+  const [courses, setCourses] = useState<CourseItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("");
 
-  const t = translations[lang]
-  const dir = useMemo(() => getDirection(lang), [lang])
+  const dir = useMemo(() => getDirection(lang), [lang]);
 
   useEffect(() => {
-    const savedLang = (window.localStorage.getItem("app_lang") as Lang) || "ar"
-    setLang(savedLang)
-    document.documentElement.lang = savedLang
-    document.documentElement.dir = getDirection(savedLang)
+    const savedLang = (window.localStorage.getItem("app_lang") as Lang) || "ar";
+    setLang(savedLang);
+    document.documentElement.lang = savedLang;
+    document.documentElement.dir = getDirection(savedLang);
 
-    const cachedUser = window.localStorage.getItem("pi_user")
+    const cachedUser = window.localStorage.getItem("pi_user");
     if (!cachedUser) {
-      setLoading(false)
-      return
+      setLoading(false);
+      return;
     }
 
     try {
-      const parsed = JSON.parse(cachedUser)
+      const parsed = JSON.parse(cachedUser);
       if (parsed?.uid && parsed?.username) {
-        setPiUser(parsed)
+        setPiUser(parsed);
       } else {
-        setLoading(false)
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to parse pi_user", error)
-      setLoading(false)
+    } catch {
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    const loadMyCourses = async () => {
-      if (!piUser?.uid) return
+    const loadCourses = async () => {
+      if (!piUser?.uid) return;
 
       try {
-        setLoading(true)
-        setError("")
+        setLoading(true);
+        setStatus("");
 
         const res = await fetch(
-          `/api/my-courses?uid=${encodeURIComponent(piUser.uid)}`,
+          `/api/courses?uid=${encodeURIComponent(piUser.uid)}`,
           { cache: "no-store" }
-        )
+        );
 
-        const json = await res.json().catch(() => ({}))
+        const json = await res.json().catch(() => ({}));
 
-        if (!res.ok) {
-          throw new Error(json?.error || t.failedToLoadCourses)
+        if (!res.ok || !json?.ok) {
+          throw new Error(
+            json?.error ||
+              (lang === "ar" ? "فشل تحميل دوراتك" : "Failed to load your courses")
+          );
         }
 
-        setCourses(Array.isArray(json.courses) ? json.courses : [])
+        setCourses(Array.isArray(json.courses) ? json.courses : []);
       } catch (error: any) {
-        console.error(error)
-        setError(error?.message || t.failedToLoadCourses)
+        console.error(error);
+        setStatus(
+          error?.message ||
+            (lang === "ar" ? "فشل تحميل دوراتك" : "Failed to load your courses")
+        );
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    loadMyCourses()
-  }, [piUser, t.failedToLoadCourses])
+    void loadCourses();
+  }, [piUser?.uid, lang]);
 
-  const changeLanguage = (nextLang: Lang) => {
-    setLang(nextLang)
-    window.localStorage.setItem("app_lang", nextLang)
-    document.documentElement.lang = nextLang
-    document.documentElement.dir = getDirection(nextLang)
-  }
+  const text = {
+    ar: {
+      back: "← العودة إلى الملف الشخصي",
+      title: "دوراتي",
+      subtitle: "كل الدورات التي أنشأتها تظهر هنا بعد النشر",
+      mustLogin: "يجب ربط حساب Pi أولًا لعرض دوراتك",
+      loading: "جاري تحميل دوراتك...",
+      empty: "لا توجد لديك دورات منشورة حتى الآن",
+      by: "بواسطة",
+      free: "مجاني",
+      price: "السعر",
+      duration: "المدة",
+      students: "الطلاب",
+      rating: "التقييم",
+      hasImage: "يوجد صورة",
+      hasVideo: "يوجد فيديو",
+      hasFile: "يوجد ملف",
+      noImage: "لا توجد صورة",
+      noVideo: "لا يوجد فيديو",
+      noFile: "لا يوجد ملف",
+      openCourse: "فتح صفحة الدورة",
+      openVideo: "فتح الفيديو",
+      openFile: "فتح الملف",
+      newBadge: "جديد",
+      home: "الرئيسية",
+      createCourse: "أنشئ دورة",
+      profile: "الملف",
+    },
+    en: {
+      back: "← Back to Profile",
+      title: "My Courses",
+      subtitle: "All courses you created appear here after publishing",
+      mustLogin: "Connect Pi first to view your courses",
+      loading: "Loading your courses...",
+      empty: "You do not have published courses yet",
+      by: "By",
+      free: "Free",
+      price: "Price",
+      duration: "Duration",
+      students: "Students",
+      rating: "Rating",
+      hasImage: "Has image",
+      hasVideo: "Has video",
+      hasFile: "Has file",
+      noImage: "No image",
+      noVideo: "No video",
+      noFile: "No file",
+      openCourse: "Open Course Page",
+      openVideo: "Open Video",
+      openFile: "Open File",
+      newBadge: "New",
+      home: "Home",
+      createCourse: "Create Course",
+      profile: "Profile",
+    },
+  }[lang];
+
+  const pageStyle: CSSProperties = {
+    minHeight: "100vh",
+    paddingBottom: 110,
+    background:
+      "radial-gradient(circle at top left, rgba(129,140,248,0.18), transparent 30%), linear-gradient(180deg, #f8faff 0%, #eef2ff 55%, #f5f7ff 100%)",
+    fontFamily: "var(--font-tajawal), sans-serif",
+  };
+
+  const containerStyle: CSSProperties = {
+    maxWidth: 760,
+    margin: "0 auto",
+    padding: "24px 18px",
+  };
+
+  const heroStyle: CSSProperties = {
+    background: "linear-gradient(145deg, rgba(12,23,66,0.96), rgba(86,100,210,0.92))",
+    borderRadius: 30,
+    padding: "26px 22px",
+    color: "#fff",
+    marginBottom: 20,
+    boxShadow: "0 24px 60px rgba(37, 45, 120, 0.22)",
+  };
+
+  const cardStyle: CSSProperties = {
+    background: "rgba(255,255,255,0.94)",
+    borderRadius: 28,
+    overflow: "hidden",
+    border: "1px solid rgba(255,255,255,0.7)",
+    boxShadow: "0 18px 40px rgba(76, 81, 191, 0.12)",
+    marginBottom: 18,
+  };
+
+  const imageStyle: CSSProperties = {
+    width: "100%",
+    height: 220,
+    objectFit: "cover",
+    display: "block",
+    background: "#eef2ff",
+  };
+
+  const infoBoxStyle: CSSProperties = {
+    background: "rgba(255,255,255,0.92)",
+    borderRadius: 22,
+    padding: 20,
+    color: "#64748b",
+    fontWeight: 700,
+    textAlign: "center",
+    boxShadow: "0 12px 30px rgba(15,23,42,0.06)",
+  };
+
+  const chipStyle = (active: boolean): CSSProperties => ({
+    padding: "10px 14px",
+    borderRadius: 999,
+    fontSize: 13,
+    fontWeight: 800,
+    background: active ? "rgba(16,185,129,0.10)" : "rgba(148,163,184,0.10)",
+    color: active ? "#047857" : "#64748b",
+    border: active
+      ? "1px solid rgba(16,185,129,0.20)"
+      : "1px solid rgba(148,163,184,0.18)",
+  });
+
+  const actionPrimaryStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 52,
+    padding: "0 18px",
+    borderRadius: 18,
+    background: "linear-gradient(135deg, #5b7cff 0%, #7c4dff 100%)",
+    color: "#fff",
+    textDecoration: "none",
+    fontWeight: 800,
+    fontSize: 15,
+    boxShadow: "0 12px 24px rgba(91,124,255,0.25)",
+    border: "none",
+    cursor: "pointer",
+  };
+
+  const actionSecondaryStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    padding: "0 16px",
+    borderRadius: 16,
+    background: "rgba(255,255,255,0.96)",
+    color: "#0f172a",
+    textDecoration: "none",
+    fontWeight: 800,
+    fontSize: 14,
+    border: "1px solid rgba(148,163,184,0.22)",
+  };
+
+  const bottomNavStyle: CSSProperties = {
+    position: "fixed",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: "12px 14px max(12px, env(safe-area-inset-bottom))",
+    background: "rgba(255,255,255,0.72)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    borderTop: "1px solid rgba(255,255,255,0.65)",
+    zIndex: 50,
+  };
+
+  const navWrapStyle: CSSProperties = {
+    maxWidth: 760,
+    margin: "0 auto",
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gap: 10,
+    background: "rgba(255,255,255,0.55)",
+    borderRadius: 28,
+    padding: 8,
+    boxShadow:
+      "0 12px 30px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.72)",
+  };
+
+  const navItemStyle = (active: boolean): CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 62,
+    borderRadius: 22,
+    textDecoration: "none",
+    fontWeight: 900,
+    fontSize: 18,
+    color: active ? "#fff" : "#0f172a",
+    background: active
+      ? "linear-gradient(135deg, #08153c 0%, #0f245f 100%)"
+      : "transparent",
+    boxShadow: active ? "0 14px 26px rgba(8,21,60,0.24)" : "none",
+  });
 
   return (
-    <main style={{ ...pageStyle, direction: dir }}>
+    <main style={pageStyle} dir={dir}>
       <div style={containerStyle}>
-        <div style={headerRowStyle}>
-          <div>
-            <Link href="/profile" style={backLinkStyle}>
-              {t.back}
-            </Link>
-
-            <h1 style={titleStyle}>{t.myCoursesTitle}</h1>
-            <p style={subtitleStyle}>{t.myCoursesSubtitle}</p>
-          </div>
-
-          <div style={languageWrapStyle}>
-            <button
-              onClick={() => changeLanguage("ar")}
-              style={langButtonStyle(lang === "ar")}
-              type="button"
-            >
-              العربية
-            </button>
-            <button
-              onClick={() => changeLanguage("en")}
-              style={langButtonStyle(lang === "en")}
-              type="button"
-            >
-              English
-            </button>
-          </div>
+        <div style={{ marginBottom: 16 }}>
+          <Link
+            href="/profile"
+            style={{
+              textDecoration: "none",
+              color: "#64748b",
+              fontWeight: 800,
+            }}
+          >
+            {text.back}
+          </Link>
         </div>
 
+        <section style={heroStyle}>
+          <h1 style={{ fontSize: 36, fontWeight: 900, margin: "0 0 10px" }}>
+            {text.title}
+          </h1>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 16,
+              lineHeight: 1.9,
+              color: "rgba(255,255,255,0.82)",
+            }}
+          >
+            {text.subtitle}
+          </p>
+        </section>
+
         {!piUser ? (
-          <div style={infoBoxStyle}>{t.mustConnectPiFirst}</div>
+          <div style={infoBoxStyle}>{text.mustLogin}</div>
         ) : loading ? (
-          <div style={infoBoxStyle}>{t.loadingCourses}</div>
-        ) : error ? (
-          <div style={errorBoxStyle}>{error}</div>
+          <div style={infoBoxStyle}>{text.loading}</div>
+        ) : status ? (
+          <div style={infoBoxStyle}>{status}</div>
         ) : courses.length === 0 ? (
-          <div style={infoBoxStyle}>{t.noOwnedCourses}</div>
+          <div style={infoBoxStyle}>{text.empty}</div>
         ) : (
-          <div style={gridStyle}>
-            {courses.map((course) => (
-              <Link
-                key={course.id}
-                href={`/courses/${course.id}`}
-                style={cardLinkStyle}
-              >
-                <div style={imageWrapStyle}>
-                  {course.image_url ? (
-                    <img
-                      src={course.image_url}
-                      alt={course.title}
-                      style={imageStyle}
-                    />
-                  ) : (
-                    <div style={imagePlaceholderStyle}>📘</div>
-                  )}
+          courses.map((course) => (
+            <div key={course.id} style={cardStyle}>
+              <img
+                src={course.image_url || "/placeholder.svg"}
+                alt={course.title}
+                style={imageStyle}
+              />
+
+              <div style={{ padding: 20 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "flex-start",
+                    marginBottom: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: 30,
+                      fontWeight: 900,
+                      margin: 0,
+                      color: "#0f172a",
+                    }}
+                  >
+                    {course.title}
+                  </h2>
+
+                  {course.is_new ? (
+                    <div
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 999,
+                        background: "linear-gradient(135deg, #f59e0b 0%, #facc15 100%)",
+                        color: "#fff",
+                        fontWeight: 900,
+                        fontSize: 13,
+                      }}
+                    >
+                      {text.newBadge}
+                    </div>
+                  ) : null}
                 </div>
 
-                <div style={cardContentStyle}>
-                  <h3 style={cardTitleStyle}>{course.title}</h3>
+                <div style={{ color: "#64748b", fontSize: 16, marginBottom: 10 }}>
+                  {text.by} {course.instructor_name || "-"}
+                </div>
 
-                  <div style={metaTextStyle}>
-                    {t.instructorBy} {course.instructor_name}
-                  </div>
+                <div style={{ color: "#475569", lineHeight: 1.9, marginBottom: 16 }}>
+                  {course.description || (lang === "ar" ? "لا يوجد وصف" : "No description")}
+                </div>
 
-                  <p style={descriptionStyle}>
-                    {course.description || t.noDescription}
-                  </p>
-
-                  <div style={statsRowStyle}>
-                    <div>
-                      {t.duration}: {course.duration || t.notSpecified}
-                    </div>
-                    <div>
-                      {t.price}:{" "}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                    gap: 10,
+                    marginBottom: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      borderRadius: 16,
+                      padding: 12,
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontWeight: 900, fontSize: 18, color: "#0f172a" }}>
                       {course.is_free
-                        ? t.free
-                        : `${course.price} ${course.currency || "PI"}`}
+                        ? text.free
+                        : `${course.price || 0} ${course.currency || "PI"}`}
                     </div>
+                    <div style={{ color: "#64748b", fontSize: 13 }}>{text.price}</div>
                   </div>
 
-                  <div style={openButtonStyle}>{t.startNow}</div>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      borderRadius: 16,
+                      padding: 12,
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontWeight: 900, fontSize: 18, color: "#0f172a" }}>
+                      {course.duration || "-"}
+                    </div>
+                    <div style={{ color: "#64748b", fontSize: 13 }}>{text.duration}</div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      borderRadius: 16,
+                      padding: 12,
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontWeight: 900, fontSize: 18, color: "#0f172a" }}>
+                      {course.students_count ?? 0}
+                    </div>
+                    <div style={{ color: "#64748b", fontSize: 13 }}>{text.students}</div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      borderRadius: 16,
+                      padding: 12,
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontWeight: 900, fontSize: 18, color: "#0f172a" }}>
+                      {course.rating ?? 0}
+                    </div>
+                    <div style={{ color: "#64748b", fontSize: 13 }}>{text.rating}</div>
+                  </div>
                 </div>
-              </Link>
-            ))}
-          </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    flexWrap: "wrap",
+                    marginBottom: 18,
+                  }}
+                >
+                  <div style={chipStyle(!!course.image_url)}>
+                    {course.image_url ? text.hasImage : text.noImage}
+                  </div>
+                  <div style={chipStyle(!!course.video_url)}>
+                    {course.video_url ? text.hasVideo : text.noVideo}
+                  </div>
+                  <div style={chipStyle(!!course.file_url)}>
+                    {course.file_url ? text.hasFile : text.noFile}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                  }}
+                >
+                  <Link href={`/courses/${course.id}`} style={actionPrimaryStyle}>
+                    {text.openCourse}
+                  </Link>
+
+                  {course.video_url ? (
+                    <a
+                      href={course.video_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={actionSecondaryStyle}
+                    >
+                      {text.openVideo}
+                    </a>
+                  ) : null}
+
+                  {course.file_url ? (
+                    <a
+                      href={course.file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={actionSecondaryStyle}
+                    >
+                      {text.openFile}
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      <nav style={navStyle}>
-        <Link href="/profile" style={navItemStyle(false)}>
-          {t.profile}
-        </Link>
+      <nav style={bottomNavStyle}>
+        <div style={navWrapStyle}>
+          <Link href="/" style={navItemStyle(false)}>
+            {text.home}
+          </Link>
 
-        <Link href="/my-courses" style={navItemStyle(true)}>
-          {t.myCourses}
-        </Link>
+          <Link href="/create-course" style={navItemStyle(false)}>
+            {text.createCourse}
+          </Link>
 
-        <Link href="/" style={navItemStyle(false)}>
-          {t.home}
-        </Link>
+          <Link href="/profile" style={navItemStyle(true)}>
+            {text.profile}
+          </Link>
+        </div>
       </nav>
     </main>
-  )
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: "100vh",
-  paddingBottom: 96,
-}
-
-const containerStyle: CSSProperties = {
-  maxWidth: 460,
-  margin: "0 auto",
-  padding: 14,
-}
-
-const headerRowStyle: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: 12,
-  marginBottom: 16,
-}
-
-const backLinkStyle: CSSProperties = {
-  color: "#0f172a",
-  textDecoration: "none",
-  fontSize: 14,
-  display: "inline-block",
-  marginBottom: 10,
-}
-
-const titleStyle: CSSProperties = {
-  fontSize: 30,
-  fontWeight: 900,
-  margin: "0 0 8px",
-  color: "#0f172a",
-}
-
-const subtitleStyle: CSSProperties = {
-  color: "#64748b",
-  lineHeight: 1.8,
-  margin: 0,
-}
-
-const languageWrapStyle: CSSProperties = {
-  display: "flex",
-  gap: 8,
-  flexShrink: 0,
-}
-
-function langButtonStyle(active: boolean): CSSProperties {
-  return {
-    border: "1px solid #cbd5e1",
-    background: active ? "#0f172a" : "white",
-    color: active ? "white" : "#0f172a",
-    borderRadius: 12,
-    padding: "10px 12px",
-    fontSize: 13,
-    fontWeight: 800,
-    cursor: "pointer",
-  }
-}
-
-const infoBoxStyle: CSSProperties = {
-  background: "white",
-  border: "1px solid #e5e7eb",
-  borderRadius: 20,
-  padding: 18,
-  color: "#475569",
-  lineHeight: 1.8,
-}
-
-const errorBoxStyle: CSSProperties = {
-  background: "#fef2f2",
-  border: "1px solid #fecaca",
-  borderRadius: 20,
-  padding: 18,
-  color: "#991b1b",
-  lineHeight: 1.8,
-}
-
-const gridStyle: CSSProperties = {
-  display: "grid",
-  gap: 16,
-}
-
-const cardLinkStyle: CSSProperties = {
-  background: "white",
-  border: "1px solid #e5e7eb",
-  borderRadius: 24,
-  textDecoration: "none",
-  color: "#0f172a",
-  overflow: "hidden",
-}
-
-const imageWrapStyle: CSSProperties = {
-  width: "100%",
-  height: 170,
-  background: "#e2e8f0",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  overflow: "hidden",
-}
-
-const imageStyle: CSSProperties = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-}
-
-const imagePlaceholderStyle: CSSProperties = {
-  fontSize: 44,
-}
-
-const cardContentStyle: CSSProperties = {
-  padding: 16,
-}
-
-const cardTitleStyle: CSSProperties = {
-  fontSize: 22,
-  fontWeight: 900,
-  margin: "0 0 8px",
-}
-
-const metaTextStyle: CSSProperties = {
-  color: "#64748b",
-  fontSize: 14,
-  marginBottom: 10,
-}
-
-const descriptionStyle: CSSProperties = {
-  color: "#475569",
-  lineHeight: 1.8,
-  margin: "0 0 14px",
-}
-
-const statsRowStyle: CSSProperties = {
-  display: "grid",
-  gap: 8,
-  color: "#334155",
-  fontSize: 14,
-  marginBottom: 14,
-}
-
-const openButtonStyle: CSSProperties = {
-  background: "#0f172a",
-  color: "white",
-  borderRadius: 16,
-  padding: "12px 16px",
-  fontWeight: 900,
-  textAlign: "center",
-}
-
-const navStyle: CSSProperties = {
-  position: "fixed",
-  bottom: 0,
-  left: "50%",
-  transform: "translateX(-50%)",
-  width: "100%",
-  maxWidth: 460,
-  background: "white",
-  borderTop: "1px solid #e5e7eb",
-  padding: 10,
-  display: "grid",
-  gridTemplateColumns: "repeat(3, 1fr)",
-  gap: 8,
-}
-
-function navItemStyle(active: boolean): CSSProperties {
-  return {
-    textDecoration: "none",
-    textAlign: "center",
-    background: active ? "#0f172a" : "transparent",
-    color: active ? "white" : "#0f172a",
-    padding: "12px 8px",
-    borderRadius: 18,
-    fontSize: 14,
-    fontWeight: active ? 800 : 700,
-  }
+  );
 }
