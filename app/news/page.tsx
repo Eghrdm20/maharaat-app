@@ -25,43 +25,74 @@ type Category = {
 };
 
 const categories: Category[] = [
-  { id: "all", name: "الكل", icon: "📰" },
-  { id: "tech", name: "تقنية", icon: "💻" },
-  { id: "education", name: "تعليم", icon: "📚" },
+  { id: "all", name: "الكل", icon: "" },
+  { id: "tech", name: "تقنية", icon: "" },
+  { id: "education", name: "تعليم", icon: "" },
   { id: "pi", name: "Pi Network", icon: "π" },
-  { id: "general", name: "عامة", icon: "🌟" },
+  { id: "general", name: "عامة", icon: "" },
 ];
 
 export default function NewsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState("all");
   const [lang, setLang] = useState<Lang>("ar");
-  
+
   const t = translations[lang];
   const dir = getDirection(lang);
 
   useEffect(() => {
     const savedLang = (window.localStorage.getItem("app_lang") as Lang) || "ar";
     setLang(savedLang);
-    
-    loadPosts(activeCategory);
+  }, []);
+
+  useEffect(() => {
+    void loadPosts(activeCategory);
   }, [activeCategory]);
 
   const loadPosts = async (category: string) => {
     setLoading(true);
+    setError(null);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
     try {
-      const res = await fetch(`/api/news?category=${category}&limit=10`);
-      const json = await res.json();
-      setPosts(json.posts || []);
-    } catch (error) {
-      console.error("Failed to load news:", error);
+      const res = await fetch(`/api/news?category=${encodeURIComponent(category)}&limit=10`, {
+        method: "GET",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      let json: any = null;
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
+      }
+
+      if (!res.ok) {
+        throw new Error(json?.error || "تعذر تحميل الأخبار");
+      }
+
+      setPosts(Array.isArray(json?.posts) ? json.posts : []);
+    } catch (err: any) {
+      console.error("Failed to load news:", err);
+
+      if (err?.name === "AbortError") {
+        setError("انتهت مهلة تحميل الأخبار. حاول مرة أخرى.");
+      } else {
+        setError(err?.message || "حدث خطأ أثناء تحميل الأخبار.");
+      }
+
+      setPosts([]);
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   };
 
-  // Styles
   const mainStyle: CSSProperties = {
     minHeight: "100vh",
     paddingBottom: 100,
@@ -102,8 +133,8 @@ export default function NewsPage() {
     padding: "10px 18px",
     borderRadius: "999px",
     border: active ? "2px solid transparent" : "2px solid var(--border-color)",
-    background: active 
-      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
+    background: active
+      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
       : "var(--bg-card)",
     color: active ? "white" : "var(--text-secondary)",
     fontWeight: active ? 700 : 600,
@@ -143,6 +174,7 @@ export default function NewsPage() {
     fontSize: 13,
     color: "var(--text-muted)",
     marginTop: 12,
+    flexWrap: "wrap",
   };
 
   const metaItemStyle: CSSProperties = {
@@ -151,18 +183,24 @@ export default function NewsPage() {
     gap: 4,
   };
 
+  const stateCardStyle: CSSProperties = {
+    background: "var(--bg-card)",
+    borderRadius: 20,
+    padding: 24,
+    textAlign: "center",
+    boxShadow: "var(--shadow-md)",
+  };
+
   return (
-    <main style={{ ...mainStyle, direction: dir }}>
+    <main style={mainStyle} dir={dir}>
       <div style={containerStyle}>
-        {/* Header */}
-        <header style={headerStyle}>
-          <h1 style={titleStyle}>📰 الأخبار والمقالات</h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: 15 }}>
+        <div style={headerStyle}>
+          <h1 style={titleStyle}>الأخبار والمقالات</h1>
+          <p style={{ color: "var(--text-secondary)" }}>
             اقرأ أحدث المقالات والتفاعل مع المجتمع
           </p>
-        </header>
+        </div>
 
-        {/* Categories */}
         <div style={categoriesStyle}>
           {categories.map((cat) => (
             <button
@@ -175,167 +213,62 @@ export default function NewsPage() {
           ))}
         </div>
 
-        {/* Posts */}
         {loading ? (
-          <div style={{
-            textAlign: "center",
-            padding: 40,
-            color: "var(--text-muted)",
-          }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
-            جاري تحميل المقالات...
+          <div style={stateCardStyle}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
+            <div>جاري تحميل المقالات...</div>
+          </div>
+        ) : error ? (
+          <div style={stateCardStyle}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+            <div style={{ marginBottom: 12 }}>{error}</div>
+            <button
+              onClick={() => void loadPosts(activeCategory)}
+              style={{
+                padding: "10px 16px",
+                borderRadius: 12,
+                border: "none",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              إعادة المحاولة
+            </button>
           </div>
         ) : posts.length === 0 ? (
-          <div style={{
-            textAlign: "center",
-            padding: 40,
-            color: "var(--text-muted)",
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
-            لا توجد مقالات بعد
-          </div>
+          <div style={stateCardStyle}>لا توجد مقالات بعد</div>
         ) : (
-          <div>
-            {posts.map((post) => (
-              <Link key={post.id} href={`/news/${post.id}`} style={cardStyle}>
-                {post.image_url ? (
-                  <img src={post.image_url} alt={post.title} style={imageStyle} />
-                ) : (
-                  <div style={{ ...imageStyle, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}>
-                    📰
-                  </div>
-                )}
-                
-                <div style={contentStyle}>
-                  <span style={{
-                    display: "inline-block",
-                    padding: "4px 12px",
-                    background: "rgba(102, 126, 234, 0.1)",
-                    color: "#667eea",
-                    borderRadius: "999px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    marginBottom: 10,
-                  }}>
-                    {categories.find(c => c.id === post.category)?.icon}{" "}
-                    {categories.find(c => c.id === post.category)?.name || post.category}
-                  </span>
+          posts.map((post) => (
+            <Link key={post.id} href={`/news/${post.id}`} style={cardStyle}>
+              {post.image_url ? (
+                <img src={post.image_url} alt={post.title} style={imageStyle} />
+              ) : null}
 
-                  <h2 style={{
-                    fontSize: 20,
-                    fontWeight: 800,
-                    color: "var(--text-primary)",
-                    marginBottom: 8,
-                    lineHeight: 1.4,
-                  }}>
-                    {post.title}
-                  </h2>
-
-                  <p style={{
-                    color: "var(--text-secondary)",
-                    fontSize: 14,
-                    lineHeight: 1.6,
-                    marginBottom: 12,
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}>
-                    {post.excerpt}
-                  </p>
-
-                  <div style={metaStyle}>
-                    <span style={metaItemStyle}>
-                      👤 {post.username || "مجهول"}
-                    </span>
-                    <span style={metaItemStyle}>
-                      ❤️ {post.likes_count || 0}
-                    </span>
-                    <span style={metaItemStyle}>
-                      💬 {post.comments_count || 0}
-                    </span>
-                    <span style={metaItemStyle}>
-                      👁️ {post.views_count || 0}
-                    </span>
-                  </div>
+              <div style={contentStyle}>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 8 }}>
+                  {categories.find((c) => c.id === post.category)?.icon}{" "}
+                  {categories.find((c) => c.id === post.category)?.name || post.category}
                 </div>
-              </Link>
-            ))}
-          </div>
+
+                <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10 }}>
+                  {post.title}
+                </h2>
+
+                <p style={{ color: "var(--text-secondary)", lineHeight: 1.7 }}>
+                  {post.excerpt}
+                </p>
+
+                <div style={metaStyle}>
+                  <span style={metaItemStyle}>👤 {post.username || "مجهول"}</span>
+                  <span style={metaItemStyle}>❤️ {post.likes_count || 0}</span>
+                  <span style={metaItemStyle}>💬 {post.comments_count || 0}</span>
+                  <span style={metaItemStyle}>👁️ {post.views_count || 0}</span>
+                </div>
+              </div>
+            </Link>
+          ))
         )}
       </div>
-
-      {/* Bottom Nav */}
-      <nav style={{
-        position: "fixed",
-        bottom: 0,
-        left: "50%",
-        transform: "translateX(-50%)",
-        width: "100%",
-        maxWidth: 600,
-        background: "rgba(255,255,255,0.95)",
-        backdropFilter: "blur(20px)",
-        borderTop: "1px solid var(--border-color)",
-        padding: "12px 16px",
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: 8,
-        zIndex: 100,
-      }}>
-        <Link href="/profile" style={{
-          textDecoration: "none",
-          textAlign: "center",
-          color: "var(--text-secondary)",
-          padding: "10px",
-          borderRadius: "14px",
-          fontSize: 12,
-          fontWeight: 600,
-        }}>
-          <div style={{ fontSize: 20, marginBottom: 4 }}>👤</div>
-          الملف الشخصي
-        </Link>
-        
-        <Link href="/create-course" style={{
-          textDecoration: "none",
-          textAlign: "center",
-          color: "var(--text-secondary)",
-          padding: "10px",
-          borderRadius: "14px",
-          fontSize: 12,
-          fontWeight: 600,
-        }}>
-          <div style={{ fontSize: 20, marginBottom: 4 }}>➕</div>
-          دورة
-        </Link>
-
-        <Link href="/news" style={{
-          textDecoration: "none",
-          textAlign: "center",
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          color: "white",
-          padding: "10px",
-          borderRadius: "14px",
-          fontSize: 12,
-          fontWeight: 700,
-          boxShadow: "0 8px 24px rgba(102, 126, 234, 0.35)",
-        }}>
-          <div style={{ fontSize: 20, marginBottom: 4 }}>📰</div>
-          أخبار
-        </Link>
-
-        <Link href="/" style={{
-          textDecoration: "none",
-          textAlign: "center",
-          color: "var(--text-secondary)",
-          padding: "10px",
-          borderRadius: "14px",
-          fontSize: 12,
-          fontWeight: 600,
-        }}>
-          <div style={{ fontSize: 20, marginBottom: 4 }}>🏠</div>
-          الرئيسية
-        </Link>
-      </nav>
     </main>
   );
-      }
+}
