@@ -801,7 +801,13 @@ export default function CourseDetailsPage() {
   const imageUrl = course.image_url || "/placeholder.svg";
   const priceText = course.is_free ? t.free : `${course.price} ${course.currency || "PI"}`;
   const isOwner = !!piUser?.uid && piUser.uid === course.owner_pi_uid;
-  const articleBlocks = protectedContent?.article_blocks || [];
+
+  const effectiveVideoUrl = protectedContent?.video_url || course.video_url || null;
+  const effectiveFileUrl = protectedContent?.file_url || course.file_url || null;
+  const effectiveArticleBlocks =
+    protectedContent?.article_blocks || course.article_blocks || [];
+
+  const articleBlocks = effectiveArticleBlocks;
   const hasWrittenContent =
     course.content_type === "article" &&
     Array.isArray(articleBlocks) &&
@@ -937,9 +943,13 @@ export default function CourseDetailsPage() {
                         return (
                           <div key={block.id || `${index}`} style={articleBlockStyle}>
                             {block.heading ? (
-                              <h3 style={{ marginTop: 0, marginBottom: 10 }}>{block.heading}</h3>
+                              <h3 style={{ marginTop: 0, marginBottom: 10 }}>
+                                {block.heading}
+                              </h3>
                             ) : null}
-                            <div style={{ lineHeight: 1.9, color: "#334155" }}>{block.text}</div>
+                            <div style={{ lineHeight: 1.9, color: "#334155" }}>
+                              {block.text}
+                            </div>
                           </div>
                         );
                       }
@@ -957,7 +967,13 @@ export default function CourseDetailsPage() {
                               }}
                             />
                             {block.caption ? (
-                              <div style={{ marginTop: 10, color: "#64748b", fontSize: 14 }}>
+                              <div
+                                style={{
+                                  marginTop: 10,
+                                  color: "#64748b",
+                                  fontSize: 14,
+                                }}
+                              >
                                 {block.caption}
                               </div>
                             ) : null}
@@ -970,11 +986,11 @@ export default function CourseDetailsPage() {
                   </>
                 ) : null}
 
-                {protectedContent?.video_url ? (
+                {effectiveVideoUrl ? (
                   <>
                     <div style={sectionTitleStyle}>{t.courseVideo}</div>
                     <video
-                      src={protectedContent.video_url}
+                      src={effectiveVideoUrl}
                       controls
                       style={{
                         width: "100%",
@@ -985,11 +1001,11 @@ export default function CourseDetailsPage() {
                   </>
                 ) : null}
 
-                {protectedContent?.file_url ? (
+                {effectiveFileUrl ? (
                   <>
                     <div style={sectionTitleStyle}>{t.courseFile}</div>
                     <a
-                      href={protectedContent.file_url}
+                      href={effectiveFileUrl}
                       target="_blank"
                       rel="noreferrer"
                       style={{
@@ -1011,8 +1027,8 @@ export default function CourseDetailsPage() {
                 ) : null}
 
                 {course.content_type !== "article" &&
-                !protectedContent?.video_url &&
-                !protectedContent?.file_url &&
+                !effectiveVideoUrl &&
+                !effectiveFileUrl &&
                 !loadingProtectedContent ? (
                   <div style={statusBoxStyle}>
                     {lang === "ar"
