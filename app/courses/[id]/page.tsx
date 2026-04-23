@@ -175,14 +175,19 @@ export default function CourseDetailsPage() {
           return;
         }
 
+        const localOwned = window.localStorage.getItem(`owned_course_${courseId}`);
+        if (localOwned === "true") {
+          setHasAccess(true);
+          return;
+        }
+
         if (course.is_free) {
           setHasAccess(!!piUser?.uid);
           return;
         }
 
         if (!piUser?.uid) {
-          const localOwned = window.localStorage.getItem(`owned_course_${courseId}`);
-          setHasAccess(localOwned === "true");
+          setHasAccess(false);
           return;
         }
 
@@ -197,8 +202,7 @@ export default function CourseDetailsPage() {
 
         if (error) {
           console.error("Purchase check error:", error);
-          const localOwned = window.localStorage.getItem(`owned_course_${courseId}`);
-          setHasAccess(localOwned === "true");
+          setHasAccess(false);
           return;
         }
 
@@ -495,6 +499,31 @@ export default function CourseDetailsPage() {
                 await refreshAccessFromSupabase(currentUser.uid);
               } catch (error) {
                 console.error("refreshAccessFromSupabase failed:", error);
+              }
+
+              try {
+                const sessionToken = window.localStorage.getItem("pi_session_token") || "";
+
+                if (sessionToken) {
+                  const protectedRes = await fetch(
+                    `/api/courses/${course.id}/protected-content`,
+                    {
+                      method: "GET",
+                      cache: "no-store",
+                      headers: {
+                        Authorization: `Bearer ${sessionToken}`,
+                      },
+                    }
+                  );
+
+                  const protectedJson = await protectedRes.json().catch(() => ({}));
+
+                  if (protectedRes.ok) {
+                    setProtectedContent(protectedJson.content || null);
+                  }
+                }
+              } catch (error) {
+                console.error("Failed to load protected content after purchase:", error);
               }
 
               setStatus(
