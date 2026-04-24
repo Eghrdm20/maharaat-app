@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { isAdminUid } from "@/lib/admin";
 
 export const runtime = "nodejs";
+
+function getAdminUids(): string[] {
+  return (process.env.ADMIN_PI_UIDS || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function isAdminUid(uid?: string | null): boolean {
+  if (!uid) return false;
+  return getAdminUids().includes(uid.trim());
+}
 
 export async function DELETE(
   req: NextRequest,
@@ -47,7 +58,16 @@ export async function DELETE(
 
     if (!canDelete) {
       return NextResponse.json(
-        { ok: false, error: "You are not allowed to delete this course" },
+        {
+          ok: false,
+          error: "You are not allowed to delete this course",
+          debug: {
+            requesterUid,
+            owner_pi_uid: course.owner_pi_uid,
+            isAdmin: isAdminUid(requesterUid),
+            admins: getAdminUids(),
+          },
+        },
         { status: 403 }
       );
     }
