@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { translations, type Lang, getDirection } from "@/lib/i18n";
+import { isAdminClient } from "@/lib/admin-client";
 
 type Course = {
   id: number;
@@ -20,6 +21,12 @@ type Course = {
   rating: number | null;
   is_new: boolean | null;
   is_deleted?: boolean;
+  owner_pi_uid?: string | null;
+};
+
+type CachedPiUser = {
+  uid: string;
+  username: string;
 };
 
 export default function HomePage() {
@@ -29,6 +36,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lang, setLang] = useState<Lang>("ar");
+  const [piUser, setPiUser] = useState<CachedPiUser | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const t = translations[lang];
   const dir = getDirection(lang);
@@ -38,6 +47,18 @@ export default function HomePage() {
     setLang(savedLang);
     document.documentElement.lang = savedLang;
     document.documentElement.dir = getDirection(savedLang);
+
+    const cachedUser = window.localStorage.getItem("pi_user");
+    if (cachedUser) {
+      try {
+        const parsed = JSON.parse(cachedUser);
+        if (parsed?.uid && parsed?.username) {
+          setPiUser(parsed);
+        }
+      } catch (error) {
+        console.error("Failed to parse pi_user", error);
+      }
+    }
 
     const loadCourses = async () => {
       try {
@@ -95,6 +116,51 @@ export default function HomePage() {
       })
     );
   }, [search, courses]);
+
+  const handleDeleteCourse = async (courseId: number) => {
+    if (!piUser?.uid) return;
+
+    const confirmed = window.confirm(
+      lang === "ar"
+        ? "هل تريد حذف هذه الدورة؟"
+        : "Do you want to delete this course?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(courseId);
+      setError("");
+
+      const res = await fetch(`/api/courses/${courseId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uid: piUser.uid }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(
+          json?.error ||
+            (lang === "ar" ? "فشل حذف الدورة" : "Failed to delete course")
+        );
+      }
+
+      setCourses((prev) => prev.filter((course) => course.id !== courseId));
+      setFilteredCourses((prev) => prev.filter((course) => course.id !== courseId));
+    } catch (err: any) {
+      console.error(err);
+      setError(
+        err?.message ||
+          (lang === "ar" ? "فشل حذف الدورة" : "Failed to delete course")
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const mainStyle: CSSProperties = {
     minHeight: "100vh",
@@ -178,13 +244,15 @@ export default function HomePage() {
     gap: 10,
   };
 
-  const cardStyle: CSSProperties = {
+  const cardWrapperStyle: CSSProperties = {
     background: "var(--bg-card)",
     border: "1px solid var(--border-color)",
     borderRadius: "24px",
     overflow: "hidden",
     boxShadow: "var(--shadow-md)",
-    transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+  };
+
+  const cardLinkStyle: CSSProperties = {
     textDecoration: "none",
     color: "var(--text-primary)",
     display: "block",
@@ -311,6 +379,18 @@ export default function HomePage() {
     cursor: "pointer",
     border: "none",
     letterSpacing: "0.5px",
+  };
+
+  const deleteButtonStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 52,
+    borderRadius: "0 0 24px 24px",
+    border: "none",
+    background: "#ef4444",
+    color: "#fff",
+    fontWeight: 800,
+    fontSize: 15,
+    cursor: "pointer",
   };
 
   const infoBoxStyle: CSSProperties = {
@@ -527,96 +607,128 @@ export default function HomePage() {
             </div>
           ) : (
             <div style={{ display: "grid", gap: 20 }}>
-              {filteredCourses.map((course) => (
-                <Link key={course.id} href={`/courses/${course.id}`} style={cardStyle}>
-                  <div style={cardImageWrapperStyle}>
-                    {course.image_url ? (
-                      <img
-                        src={course.image_url}
-                        alt={course.title}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          transition: "transform 0.5s ease",
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          fontSize: 64,
-                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                          WebkitBackgroundClip: "text",
-                          WebkitTextFillColor: "transparent",
-                        }}
-                      >
-                        📘
-                      </div>
-                    )}
+              {filteredCourses.map((course) => {
+                const canDelete =
+                  !!piUser?.uid &&
+                  (piUser.uid === course.owner_pi_uid || isAdminClient(piUser.uid));
 
-                    <div style={{ position: "absolute", top: 14, right: 14 }}>
-                      {course.is_new ? (
-                        <span style={newBadgeStyle}>✨ {t.new}</span>
-                      ) : (
-                        <span style={activeBadgeStyle}>✅ متاح</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={cardContentStyle}>
-                    <h3 style={cardTitleStyle}>{course.title}</h3>
-
-                    <div style={instructorStyle}>
-                      <span>👨‍🏫</span> {t.instructorBy} <strong>{course.instructor_name}</strong>
-                    </div>
-
-                    <p style={descriptionStyle}>{course.description || t.noDescription}</p>
-
-                    <div style={statsGridStyle}>
-                      <div style={statItemStyle}>
-                        <span style={statValueStyle}>⭐ {course.rating ?? 0}</span>
-                        {t.rating}
-                      </div>
-                      <div style={statItemStyle}>
-                        <span style={statValueStyle}>👥 {course.students_count ?? 0}</span>
-                        {t.students}
-                      </div>
-                      <div style={statItemStyle}>
-                        <span style={statValueStyle}>⏱️ {course.duration || "-"}</span>
-                        {t.duration}
-                      </div>
-                    </div>
-
-                    <div style={cardFooterStyle}>
-                      <div style={priceStyle}>
-                        {course.is_free ? (
-                          <span>{t.free} 💚</span>
+                return (
+                  <div key={course.id} style={cardWrapperStyle}>
+                    <Link href={`/courses/${course.id}`} style={cardLinkStyle}>
+                      <div style={cardImageWrapperStyle}>
+                        {course.image_url ? (
+                          <img
+                            src={course.image_url}
+                            alt={course.title}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              transition: "transform 0.5s ease",
+                            }}
+                          />
                         ) : (
-                          <span>
-                            {course.price} {course.currency || "π"}
-                          </span>
+                          <div
+                            style={{
+                              fontSize: 64,
+                              background:
+                                "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                              WebkitBackgroundClip: "text",
+                              WebkitTextFillColor: "transparent",
+                            }}
+                          >
+                            📘
+                          </div>
                         )}
+
+                        <div style={{ position: "absolute", top: 14, right: 14 }}>
+                          {course.is_new ? (
+                            <span style={newBadgeStyle}>✨ {t.new}</span>
+                          ) : (
+                            <span style={activeBadgeStyle}>✅ متاح</span>
+                          )}
+                        </div>
                       </div>
 
+                      <div style={cardContentStyle}>
+                        <h3 style={cardTitleStyle}>{course.title}</h3>
+
+                        <div style={instructorStyle}>
+                          <span>👨‍🏫</span> {t.instructorBy}{" "}
+                          <strong>{course.instructor_name}</strong>
+                        </div>
+
+                        <p style={descriptionStyle}>{course.description || t.noDescription}</p>
+
+                        <div style={statsGridStyle}>
+                          <div style={statItemStyle}>
+                            <span style={statValueStyle}>⭐ {course.rating ?? 0}</span>
+                            {t.rating}
+                          </div>
+                          <div style={statItemStyle}>
+                            <span style={statValueStyle}>👥 {course.students_count ?? 0}</span>
+                            {t.students}
+                          </div>
+                          <div style={statItemStyle}>
+                            <span style={statValueStyle}>⏱️ {course.duration || "-"}</span>
+                            {t.duration}
+                          </div>
+                        </div>
+
+                        <div style={cardFooterStyle}>
+                          <div style={priceStyle}>
+                            {course.is_free ? (
+                              <span>{t.free} 💚</span>
+                            ) : (
+                              <span>
+                                {course.price} {course.currency || "π"}
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            style={startButtonStyle}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              window.location.href = `/courses/${course.id}`;
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = "scale(1.05)";
+                              e.currentTarget.style.boxShadow =
+                                "0 12px 32px rgba(102, 126, 234, 0.5)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow =
+                                "0 8px 24px rgba(102, 126, 234, 0.35)";
+                            }}
+                          >
+                            {t.startNow} →
+                          </button>
+                        </div>
+                      </div>
+                    </Link>
+
+                    {canDelete ? (
                       <button
-                        style={startButtonStyle}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = "scale(1.05)";
-                          e.currentTarget.style.boxShadow =
-                            "0 12px 32px rgba(102, 126, 234, 0.5)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = "scale(1)";
-                          e.currentTarget.style.boxShadow =
-                            "0 8px 24px rgba(102, 126, 234, 0.35)";
-                        }}
+                        type="button"
+                        disabled={deletingId === course.id}
+                        onClick={() => handleDeleteCourse(course.id)}
+                        style={deleteButtonStyle}
                       >
-                        {t.startNow} →
+                        {deletingId === course.id
+                          ? lang === "ar"
+                            ? "جاري الحذف..."
+                            : "Deleting..."
+                          : lang === "ar"
+                          ? "حذف الدورة"
+                          : "Delete Course"}
                       </button>
-                    </div>
+                    ) : null}
                   </div>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
