@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getDirection, type Lang } from "@/lib/i18n";
+import { isAdminClient } from "@/lib/admin-client";
 
 type CachedPiUser = {
   uid: string;
@@ -460,6 +461,8 @@ export default function ProfilePage() {
       visitorDashboardSub: "عرض مختصر لتفاعل المستخدمين",
       addNews: "إضافة الأخبار",
       addNewsSub: "انشر جديد المنصة والمقالات",
+      adminWithdrawals: "طلبات السحب",
+      adminWithdrawalsSub: "إدارة طلبات سحب الأرباح",
       home: "الرئيسية",
       profile: "الملف",
     },
@@ -505,6 +508,8 @@ export default function ProfilePage() {
       visitorDashboardSub: "See audience activity and stats",
       addNews: "Add News",
       addNewsSub: "Publish updates and articles",
+      adminWithdrawals: "Withdrawal Requests",
+      adminWithdrawalsSub: "Manage earnings withdrawal requests",
       home: "Home",
       profile: "Profile",
     },
@@ -1056,6 +1061,15 @@ export default function ProfilePage() {
           subtitle={text.addNewsSub}
           icon="📰"
         />
+
+        {piUser?.uid && isAdminClient(piUser.uid) ? (
+          <MenuCard
+            href="/admin/withdrawals"
+            title={text.adminWithdrawals}
+            subtitle={text.adminWithdrawalsSub}
+            icon="💸"
+          />
+        ) : null}
       </div>
 
       <nav style={bottomNavStyle}>
@@ -1075,11 +1089,4 @@ export default function ProfilePage() {
       </nav>
     </main>
   );
-}
-
-<MenuCard
-  href="/admin/withdrawals"
-  title={lang === "ar" ? "طلبات السحب" : "Withdrawal Requests"}
-  subtitle={lang === "ar" ? "إدارة طلبات سحب الأرباح" : "Manage withdrawal requests"}
-  icon="💸"
-/>
+      }
