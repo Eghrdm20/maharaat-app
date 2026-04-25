@@ -1076,3 +1076,10 @@ export default function ProfilePage() {
     </main>
   );
 }
+
+<MenuCard
+  href="/admin/withdrawals"
+  title={lang === "ar" ? "طلبات السحب" : "Withdrawal Requests"}
+  subtitle={lang === "ar" ? "إدارة طلبات سحب الأرباح" : "Manage withdrawal requests"}
+  icon="💸"
+/>
