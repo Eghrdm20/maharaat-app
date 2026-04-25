@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
     }
 
     const courseMap = new Map<number, any>();
+
     for (const course of courses || []) {
       courseMap.set(course.id, course);
     }
@@ -56,6 +58,7 @@ export async function GET(req: NextRequest) {
     const merged = rows
       .map((purchase) => {
         const course = courseMap.get(purchase.course_id);
+
         if (!course) return null;
         if (course.is_free) return null;
 
