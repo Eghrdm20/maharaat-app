@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
@@ -30,14 +31,17 @@ export async function GET(req: NextRequest) {
     const sales = data || [];
 
     const totalSales = sales.length;
+
     const totalGross = sales.reduce(
       (sum, row) => sum + Number(row.amount || 0),
       0
     );
+
     const totalNet = sales.reduce(
       (sum, row) => sum + Number(row.seller_net || 0),
       0
     );
+
     const currency = sales[0]?.currency || "PI";
 
     return NextResponse.json({
